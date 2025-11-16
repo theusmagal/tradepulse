@@ -1,17 +1,73 @@
+// app/settings/BillingPanel.tsx
 "use client";
+
+import { useState } from "react";
 
 type Plan = "PRO_MONTHLY" | "PRO_ANNUAL";
 
 type Props = {
   /** Current paid plan; omit or undefined means not subscribed */
   plan?: Plan;
-  /** Stripe customer portal URL (null/undefined when unavailable) */
+  /** Stripe customer portal URL (no longer used; kept for compatibility) */
   portalUrl?: string | null;
   /** ISO string; when in the future, shows active trial */
   trialEndsAt?: string | null;
 };
 
-export default function BillingPanel({ plan, portalUrl, trialEndsAt }: Props) {
+function formatDateStable(d: Date): string {
+  // Locale-independent: 2025-11-27
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function ManageSubscriptionButton() {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onClick() {
+    setErr(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/billing/portal", {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || `Failed to open billing portal (${res.status})`);
+      }
+
+      const data = (await res.json()) as { url?: string };
+      if (data.url) {
+        window.location.href = data.url; // redirect to Stripe Billing Portal
+      } else {
+        throw new Error("Missing portal URL");
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unexpected error";
+      setErr(msg);
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={loading}
+        className="px-3 py-2 rounded bg-emerald-600 text-white disabled:opacity-60"
+      >
+        {loading ? "Opening portal…" : "Manage subscription"}
+      </button>
+      {err && <p className="text-xs text-red-500">{err}</p>}
+    </div>
+  );
+}
+
+export default function BillingPanel({ plan, trialEndsAt }: Props) {
   const hasPlan = plan === "PRO_MONTHLY" || plan === "PRO_ANNUAL";
 
   const planLabel =
@@ -19,9 +75,7 @@ export default function BillingPanel({ plan, portalUrl, trialEndsAt }: Props) {
 
   const trialDate = trialEndsAt ? new Date(trialEndsAt) : null;
   const trialActive = !!trialDate && trialDate.getTime() > Date.now();
-  const trialLabel =
-    trialDate &&
-    trialDate.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
+  const trialLabel = trialDate ? formatDateStable(trialDate) : null;
 
   return (
     <div className="glass p-6 space-y-4 max-w-xl">
@@ -30,28 +84,24 @@ export default function BillingPanel({ plan, portalUrl, trialEndsAt }: Props) {
       <div className="text-sm text-zinc-400">Current plan</div>
       <div className="text-lg">{planLabel}</div>
 
-      {trialActive && (
+      {trialActive && trialLabel && (
         <div className="text-sm text-emerald-500">
           Trial active — ends {trialLabel}
         </div>
       )}
 
       <div className="pt-2">
-        {hasPlan && portalUrl ? (
-          <a href={portalUrl} className="px-3 py-2 rounded bg-emerald-600 text-white">
-            Manage Subscription
-          </a>
+        {hasPlan ? (
+          <ManageSubscriptionButton />
         ) : (
           <span className="text-sm text-zinc-500">
-            {hasPlan
-              ? "Billing portal is unavailable right now."
-              : "You don’t have an active subscription."}
+            You don’t have an active subscription.
           </span>
         )}
       </div>
 
       <p className="text-xs text-zinc-500">
-        Subscriptions support a 14-day trial. If you start a plan, the trial end date will appear here.
+        Subscriptions include a 14-day trial. Your active trial end date appears here.
       </p>
     </div>
   );

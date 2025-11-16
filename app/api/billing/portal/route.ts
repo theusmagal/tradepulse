@@ -1,32 +1,38 @@
-// app/api/billing/portal/route.ts
+
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { auth } from "@/lib/auth";
+import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { stripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!); // ← no apiVersion
+function baseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  );
+}
 
 export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const userId = await authUserId();
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: userId },
     select: { stripeCustomerId: true },
   });
 
   if (!user?.stripeCustomerId) {
-    return NextResponse.json({ error: "No Stripe customer" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No Stripe customer on file" },
+      { status: 400 }
+    );
   }
 
-  const portal = await stripe.billingPortal.sessions.create({
+  const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${process.env.APP_URL}/settings/billing`,
+    return_url: `${baseUrl()}/settings/billing`,
   });
 
-  return NextResponse.json({ url: portal.url });
+  return NextResponse.json({ url: session.url });
 }

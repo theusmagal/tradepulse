@@ -5,6 +5,7 @@ import { authUserId } from "@/lib/auth";
 type Plan = "PRO_MONTHLY" | "PRO_ANNUAL";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export default async function BillingPage() {
   const userId = await authUserId();
@@ -18,14 +19,5 @@ export default async function BillingPage() {
   const plan = (user?.plan ?? undefined) as Plan | undefined;
   const trialEndsAt = user?.trialEndsAt ? user.trialEndsAt.toISOString() : null;
 
-  // No billing portal model yet -> show nothing / disabled button
-  const portalUrl = null;
-
-  return (
-    <BillingPanel
-      plan={plan}
-      portalUrl={portalUrl}
-      trialEndsAt={trialEndsAt}
-    />
-  );
+  return <BillingPanel plan={plan} trialEndsAt={trialEndsAt} />;
 }

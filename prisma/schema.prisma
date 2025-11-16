@@ -48,7 +48,7 @@ model User {
   updatedAt          DateTime @updatedAt
 
   // Relations
-  subscriptions      BillingSubscription[]   // <— renamed relation
+  subscriptions      BillingSubscription[]
   brokerAccounts     BrokerAccount[]
   apiKeys            ApiKey[]
 
@@ -70,16 +70,16 @@ model BillingSubscription {
 
   @@index([userId])
   @@index([stripeCustomerId])
-  @@map("Subscription")           // <— keeps the SAME table name in DB
+  @@map("Subscription") // keeps the SAME table name in DB
 }
 
 model BrokerAccount {
   id           String   @id @default(cuid())
   userId       String
-  broker       String
+  broker       String   // e.g. "binance-futures", "binance-spot" later, "bybit-futures", etc.
   label        String?
-  apiKeyEnc    String
-  apiSecretEnc String
+  apiKeyEnc    String   // encrypted API key
+  apiSecretEnc String   // encrypted API secret
   lastSyncAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -98,13 +98,13 @@ model Execution {
   brokerAccountId String
   symbol          String
   side            Side
-  qty             Decimal       @db.Decimal(18,6)
-  price           Decimal       @db.Decimal(18,6)
-  fee             Decimal       @db.Decimal(18,6)
+  qty             Decimal       @db.Decimal(18, 6)
+  price           Decimal       @db.Decimal(18, 6)
+  fee             Decimal       @db.Decimal(18, 6)
   execTime        DateTime
   tradeId         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
@@ -119,14 +119,14 @@ model Trade {
   side            Side
   openTime        DateTime
   closeTime       DateTime
-  qty             Decimal       @db.Decimal(18,6)
-  avgEntry        Decimal       @db.Decimal(18,6)
-  avgExit         Decimal       @db.Decimal(18,6)
-  grossPnl        Decimal       @db.Decimal(18,2)
-  netPnl          Decimal       @db.Decimal(18,2)
-  fees            Decimal       @db.Decimal(18,2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  qty             Decimal       @db.Decimal(18, 6)
+  avgEntry        Decimal       @db.Decimal(18, 6)
+  avgExit         Decimal       @db.Decimal(18, 6)
+  grossPnl        Decimal       @db.Decimal(18, 2)
+  netPnl          Decimal       @db.Decimal(18, 2)
+  fees            Decimal       @db.Decimal(18, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
@@ -141,11 +141,11 @@ model DailyMetric {
   trades          Int
   wins            Int
   losses          Int
-  winRate         Decimal       @db.Decimal(6,4)
-  profitFactor    Decimal       @db.Decimal(10,4)
-  netPnl          Decimal       @db.Decimal(18,2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  winRate         Decimal       @db.Decimal(6, 4)
+  profitFactor    Decimal       @db.Decimal(10, 4)
+  netPnl          Decimal       @db.Decimal(18, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
@@ -156,7 +156,7 @@ model DailyMetric {
 model ApiKey {
   id        String        @id @default(cuid())
   userId    String
-  provider  String
+  provider  String        // e.g. "binance-futures" later if you need app-wide keys
   label     String?
   keyLast4  String
   encApiKey String
