@@ -1,44 +1,26 @@
 // app/settings/integrations/page.tsx
-import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import BinanceFuturesForm from "./BinanceFuturesForm";
-
-export const runtime = "nodejs";
+import { authUserId } from "@/lib/auth";
+import { AddBinanceForm, KeysList } from "./BinanceFuturesForm"; // ← update this line
 
 export default async function IntegrationsPage() {
   const userId = await authUserId();
-
-  const futuresAccount = await prisma.brokerAccount.findFirst({
-    where: { userId, broker: "BINANCE_FUTURES" },
-    select: {
-      id: true,
-      label: true,
-      lastSyncAt: true,
-      createdAt: true,
-    },
+  const keys = await prisma.apiKey.findMany({
+    where: { userId, provider: "binance" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, label: true, keyLast4: true, status: true },
   });
 
   return (
-    <div className="glass p-6 space-y-4 max-w-xl">
-      <h1 className="text-2xl font-semibold">Integrations</h1>
-
-      <p className="text-sm text-zinc-400">
-        Connect your Binance Futures account. Your API key and secret are
-        encrypted before being stored.
-      </p>
-
-      <BinanceFuturesForm
-        connected={!!futuresAccount}
-        existingLabel={futuresAccount?.label ?? null}
-      />
-
-      {futuresAccount && (
-        <p className="text-xs text-zinc-500">
-          Connected as{" "}
-          <span className="font-medium">{futuresAccount.label}</span> (since{" "}
-          {futuresAccount.createdAt.toLocaleDateString()})
-        </p>
-      )}
+    <div className="glass p-4 space-y-6">
+      <div>
+        <h2 className="text-base font-semibold mb-2">Binance</h2>
+        <AddBinanceForm />
+      </div>
+      <div>
+        <h3 className="text-sm font-medium mb-2">Your keys</h3>
+        <KeysList keys={keys} />
+      </div>
     </div>
   );
 }
