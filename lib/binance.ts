@@ -3,7 +3,7 @@ import crypto from "crypto";
 
 const BASE =
   process.env.BINANCE_DEFAULT_BASE_URL?.replace(/\/+$/, "") ??
-  "https://api.binance.com";
+  "https://fapi.binance.com";
 
 // If we’re using the futures host, use the futures account endpoint
 const IS_FUTURES = BASE.includes("fapi.");
