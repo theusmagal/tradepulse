@@ -3,16 +3,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { encrypt } from "@/lib/crypto";
+import { encrypt } from "@/lib/encryption";
 import { verifyBinanceKey } from "@/lib/binance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BodySchema = z.object({
-  label: z.string().trim().max(100).optional().nullable(),
-  apiKey: z.string().trim().min(10),
-  secret: z.string().trim().min(10),
+const Body = z.object({
+  apiKey: z.string().min(10),
+  apiSecret: z.string().min(10),
+  label: z.string().min(1).max(100).optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,13 +23,10 @@ export async function POST(req: Request) {
     try {
       json = await req.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const parsed = BodySchema.safeParse(json);
+    const parsed = Body.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid body", details: parsed.error.flatten() },
@@ -37,44 +34,57 @@ export async function POST(req: Request) {
       );
     }
 
-    const { label, apiKey, secret } = parsed.data;
+    const { apiKey, apiSecret, label } = parsed.data;
 
-    // 1) Verify the key against Binance (Futures-aware helper, see lib/binance.ts below)
-    const verify = await verifyBinanceKey(apiKey, secret);
-    if (!verify.ok) {
-      console.error("[binance-futures] verification failed:", verify);
+    // 1) Verify with Binance Futures
+    const res = await verifyBinanceKey(apiKey, apiSecret);
+    if (!res.ok) {
+      console.error("[binance-futures] verification failed:", res);
       return NextResponse.json(
         {
           error:
-            "Binance rejected these keys. Check that API key, secret and permissions are correct.",
+            "Binance futures API key verification failed. " +
+            "Check that Futures is enabled and no IP whitelist blocks Vercel.",
+          details: res,
         },
         { status: 400 }
       );
     }
 
-    // 2) Encrypt and store
     const encApiKey = encrypt(apiKey);
-    const encSecret = encrypt(secret);
+    const encSecret = encrypt(apiSecret);
     const keyLast4 = apiKey.slice(-4);
 
-    const created = await prisma.apiKey.create({
-      data: {
-        userId,
-        provider: "binance", // keep consistent with your page.tsx filter
-        label: label && label.trim().length ? label.trim() : null,
-        keyLast4,
-        encApiKey,
-        encSecret,
-        // status defaults to "active"
-      },
-      select: { id: true },
+    await prisma.$transaction(async (tx) => {
+      // BrokerAccount record (main object we’ll use for syncing)
+      await tx.brokerAccount.create({
+        data: {
+          userId,
+          broker: "binance-futures",
+          label: label ?? "Binance Futures",
+          apiKeyEnc: encApiKey,
+          apiSecretEnc: encSecret,
+        },
+      });
+
+      // ApiKey record used by your Integrations UI
+      await tx.apiKey.create({
+        data: {
+          userId,
+          provider: "binance",
+          label: label ?? "Binance Futures",
+          keyLast4,
+          encApiKey,
+          encSecret,
+        },
+      });
     });
 
-    return NextResponse.json({ ok: true, id: created.id });
-  } catch (err) {
-    console.error("[binance-futures/connect] error:", err);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[binance-futures/connect] error:", e);
     return NextResponse.json(
-      { error: "Failed to save Binance API key" },
+      { error: "Failed to save Binance futures key" },
       { status: 500 }
     );
   }
