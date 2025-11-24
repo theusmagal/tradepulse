@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { fmtQty, pnlClass } from "@/lib/format";
 
@@ -16,25 +16,111 @@ type Trade = {
 
 type ColKey = "time" | "symbol" | "side" | "qty" | "price" | "pnl";
 
+type ApiExecution = {
+  id: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  qty: string | number;
+  price: string | number;
+  fee: string | number;
+  execTime: string;
+};
+
+type ApiResponse = {
+  accounts?: { id: string; label: string | null }[];
+  executions?: ApiExecution[];
+  error?: string;
+};
+
 export default function TradesTable({
-  rows,
+  rows: initialRows,
   timeZone,
 }: {
   rows: Trade[];
-  timeZone?: string; // optional
+  timeZone?: string;
 }) {
+  const [liveRows, setLiveRows] = useState<Trade[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [sortBy, setSortBy] = useState<ColKey>("time");
   const [asc, setAsc] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  // Resolve timezone once
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setLoadError(null);
+
+        const res = await fetch("/api/me/binance-futures/executions", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          const msg = text || `HTTP ${res.status}`;
+          if (!cancelled) {
+            setLoadError(`Failed to load executions (${msg})`);
+            setLiveRows(null);
+          }
+          return;
+        }
+
+        const data = (await res.json()) as ApiResponse;
+
+        if (!data.executions || data.executions.length === 0) {
+          
+          if (!cancelled) {
+            setLiveRows(null);
+          }
+          return;
+        }
+
+        const mapped: Trade[] = data.executions.map((e) => ({
+          id: e.id,
+          symbol: e.symbol,
+          side: e.side,
+          qty: String(e.qty ?? "0"),
+          price: String(e.price ?? "0"),
+          pnl: 0,
+          time: e.execTime,
+        }));
+
+        if (!cancelled) {
+          setLiveRows(mapped);
+        }
+      } catch {
+        if (!cancelled) {
+          setLoadError("Network error while loading executions.");
+          setLiveRows(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const rows = liveRows && liveRows.length > 0 ? liveRows : initialRows;
+
+  if (!rows?.length) return null;
+
   const tz = useMemo(
     () => timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     [timeZone]
   );
 
-  // Build a formatter once per TZ
   const dtFmt = useMemo(
     () =>
       new Intl.DateTimeFormat("en-US", {
@@ -77,19 +163,24 @@ export default function TradesTable({
 
   const go = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
-  if (!rows?.length) return null;
-
   const ROW_H = 40;
+  const usingLive = !!liveRows && liveRows.length > 0;
 
   return (
     <div className="glass p-4 overflow-x-auto self-start">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm text-zinc-400">Recent trades (mock)</div>
+        <div className="text-sm text-zinc-400">
+          Recent trades {usingLive ? "(Binance Futures CSV)" : "(sample)"}
+        </div>
         <div className="text-xs text-zinc-400">
           Page <span className="text-zinc-200">{safePage}</span> of{" "}
           <span className="text-zinc-200">{totalPages}</span>
         </div>
       </div>
+
+      {loadError && (
+        <p className="mb-2 text-xs text-amber-400">{loadError}</p>
+      )}
 
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-zinc-900/60 backdrop-blur text-left text-zinc-400">
@@ -106,22 +197,36 @@ export default function TradesTable({
         <tbody>
           {pageRows.map((t) => (
             <tr key={t.id} className="border-t border-white/10">
-              <td className="pr-3" style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}>
+              <td
+                className="pr-3"
+                style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}
+              >
                 {fmtDateTime(t.time)}
               </td>
-              <td className="pr-3" style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}>
+              <td
+                className="pr-3"
+                style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}
+              >
                 {t.symbol}
               </td>
               <td
-                className={`pr-3 ${t.side === "BUY" ? "text-emerald-300" : "text-red-300"}`}
+                className={`pr-3 ${
+                  t.side === "BUY" ? "text-emerald-300" : "text-red-300"
+                }`}
                 style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}
               >
                 {t.side}
               </td>
-              <td className="pr-3" style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}>
+              <td
+                className="pr-3"
+                style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}
+              >
                 {fmtQty(t.qty)}
               </td>
-              <td className="pr-3" style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}>
+              <td
+                className="pr-3"
+                style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}
+              >
                 {Number(t.price).toFixed(2)}
               </td>
               <td
@@ -154,9 +259,13 @@ export default function TradesTable({
       {/* pagination controls */}
       <div className="mt-3 flex items-center justify-between text-xs text-zinc-400">
         <span>
-          Showing <span className="text-zinc-200">{sorted.length ? start + 1 : 0}</span>–
-          <span className="text-zinc-200">{Math.min(start + pageSize, sorted.length)}</span> of{" "}
-          <span className="text-zinc-200">{sorted.length}</span>
+          Showing{" "}
+          <span className="text-zinc-200">{sorted.length ? start + 1 : 0}</span>
+          –
+          <span className="text-zinc-200">
+            {Math.min(start + pageSize, sorted.length)}
+          </span>{" "}
+          of <span className="text-zinc-200">{sorted.length}</span>
         </span>
 
         <div className="flex items-center gap-1">
@@ -230,11 +339,10 @@ function header(
   );
 }
 
-// Typed extractor: returns a sortable primitive for each column
 function keyVal(t: Trade, k: ColKey): number | string {
   switch (k) {
     case "time":
-      return +new Date(t.time); // numeric timestamp
+      return +new Date(t.time); 
     case "qty":
       return Number(t.qty);
     case "price":
@@ -251,7 +359,6 @@ function keyVal(t: Trade, k: ColKey): number | string {
 }
 
 function pageButtons(current: number, total: number): number[] {
-  
   const span = 7;
   const half = Math.floor(span / 2);
   let start = Math.max(1, current - half);
