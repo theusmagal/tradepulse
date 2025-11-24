@@ -3,9 +3,22 @@ import { NextResponse } from "next/server";
 import { parse } from "csv-parse/sync";
 import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type BinanceCsvRow = Record<string, string>;
+
+type ExecutionInput = {
+  brokerAccountId: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  qty: number;
+  price: number;
+  fee: number;
+  execTime: Date;
+};
 
 export async function POST(req: Request) {
   try {
@@ -43,14 +56,13 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const csvText = buffer.toString("utf-8");
 
-    // Parse CSV into objects; first row = header
-    let records: any[];
+    let records: BinanceCsvRow[];
     try {
       records = parse(csvText, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
-      });
+      }) as BinanceCsvRow[];
     } catch (err) {
       console.error("[binance-futures/import] CSV parse error", err);
       return NextResponse.json(
@@ -59,12 +71,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const executionsData: any[] = [];
+    const executionsData: ExecutionInput[] = [];
 
     for (const row of records) {
-      // 🔹 Adjust these header names once you see your real Binance CSV.
-      // Common Binance Futures export headers include:
-      // "Date(UTC)", "Symbol", "Side", "Price", "Realized PnL", "Fee", "Executed Qty"
       const symbol =
         row["Symbol"] || row["Pair"] || row["Contract"] || row["symbol"];
       const sideRaw = row["Side"] || row["side"];
@@ -77,21 +86,19 @@ export async function POST(req: Request) {
       const feeRaw = row["Fee"] || row["Commission"] || row["fee"];
 
       if (!symbol || !sideRaw || !qtyRaw || !priceRaw) {
-        // skip incomplete rows
         continue;
       }
 
-      // Prisma enum Side: BUY | SELL
       const sideUpper = String(sideRaw).toUpperCase();
-      const side = sideUpper.startsWith("BUY") || sideUpper.startsWith("LONG")
-        ? "BUY"
-        : "SELL";
+      const side: "BUY" | "SELL" =
+        sideUpper.startsWith("BUY") || sideUpper.startsWith("LONG")
+          ? "BUY"
+          : "SELL";
 
       const qty = Number(qtyRaw) || 0;
       const price = Number(priceRaw) || 0;
       const fee = feeRaw ? Number(feeRaw) || 0 : 0;
 
-      // Date – Binance often uses "Date(UTC)" like "2024-01-01 12:34:56"
       const dateStr =
         row["Date(UTC)"] ||
         row["Update Time(UTC)"] ||
@@ -101,7 +108,6 @@ export async function POST(req: Request) {
 
       let execTime = new Date();
       if (dateStr && typeof dateStr === "string") {
-        // Try to convert "YYYY-MM-DD HH:mm:ss" to ISO
         const isoLike = dateStr.replace(" ", "T");
         execTime = new Date(isoLike.endsWith("Z") ? isoLike : isoLike + "Z");
         if (Number.isNaN(execTime.getTime())) {
@@ -112,7 +118,7 @@ export async function POST(req: Request) {
       executionsData.push({
         brokerAccountId: brokerAccount.id,
         symbol,
-        side,   // "BUY" | "SELL" (Side enum)
+        side, // "BUY" | "SELL"
         qty,
         price,
         fee,
@@ -129,7 +135,7 @@ export async function POST(req: Request) {
 
     // Insert executions
     await prisma.execution.createMany({
-      data: executionsData as any,
+      data: executionsData as unknown as Prisma.ExecutionCreateManyInput[],
       skipDuplicates: true,
     });
 

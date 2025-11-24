@@ -1,7 +1,13 @@
-
+// app/settings/integrations/BinanceFuturesForm.tsx
 "use client";
 
 import { useState, type FormEvent } from "react";
+
+type ImportResponse = {
+  ok?: boolean;
+  imported?: number;
+  error?: string;
+};
 
 export function AddBinanceForm() {
   const [file, setFile] = useState<File | null>(null);
@@ -27,11 +33,13 @@ export function AddBinanceForm() {
         body: formData,
       });
 
-      const data: any = await res.json().catch(() => null);
+      const data = (await res
+        .json()
+        .catch(() => null)) as ImportResponse | null;
 
       if (!res.ok) {
         const msg =
-          data?.error && typeof data.error === "string"
+          data && data.error
             ? data.error
             : "Import failed.";
         setStatus(`Error: ${msg}`);
