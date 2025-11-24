@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -40,7 +41,7 @@ export default function TradesTable({
   timeZone?: string;
 }) {
   const [liveRows, setLiveRows] = useState<Trade[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [sortBy, setSortBy] = useState<ColKey>("time");
@@ -74,7 +75,6 @@ export default function TradesTable({
         const data = (await res.json()) as ApiResponse;
 
         if (!data.executions || data.executions.length === 0) {
-          
           if (!cancelled) {
             setLiveRows(null);
           }
@@ -112,9 +112,8 @@ export default function TradesTable({
     };
   }, []);
 
-  const rows = liveRows && liveRows.length > 0 ? liveRows : initialRows;
-
-  if (!rows?.length) return null;
+  const rows: Trade[] =
+    liveRows && liveRows.length > 0 ? liveRows : initialRows;
 
   const tz = useMemo(
     () => timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -166,11 +165,21 @@ export default function TradesTable({
   const ROW_H = 40;
   const usingLive = !!liveRows && liveRows.length > 0;
 
+  if (!rows.length) {
+    return (
+      <div className="glass p-4 self-start text-sm text-zinc-400">
+        <div className="mb-1 font-medium">Recent trades</div>
+        {loading ? "Loading trades…" : "No trades to display yet."}
+      </div>
+    );
+  }
+
   return (
     <div className="glass p-4 overflow-x-auto self-start">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm text-zinc-400">
-          Recent trades {usingLive ? "(Binance Futures CSV)" : "(sample)"}
+          Recent trades{" "}
+          {usingLive ? "(Binance Futures CSV)" : "(sample data)"}
         </div>
         <div className="text-xs text-zinc-400">
           Page <span className="text-zinc-200">{safePage}</span> of{" "}
@@ -178,6 +187,9 @@ export default function TradesTable({
         </div>
       </div>
 
+      {loading && (
+        <p className="mb-2 text-xs text-zinc-400">Loading trades…</p>
+      )}
       {loadError && (
         <p className="mb-2 text-xs text-amber-400">{loadError}</p>
       )}
@@ -342,7 +354,7 @@ function header(
 function keyVal(t: Trade, k: ColKey): number | string {
   switch (k) {
     case "time":
-      return +new Date(t.time); 
+      return +new Date(t.time); // numeric timestamp
     case "qty":
       return Number(t.qty);
     case "price":
