@@ -1,13 +1,6 @@
-// lib/crypto.ts
+
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 
-/**
- * We support two env vars for the 32-byte key:
- * - DATA_KEY: base64-encoded 32 bytes
- * - APP_ENCRYPTION_KEY: hex-encoded 32 bytes
- *
- * Exactly one of them must be set.
- */
 function getKey(): Buffer {
   const b64 = process.env.DATA_KEY;
   const hex = process.env.APP_ENCRYPTION_KEY;
@@ -35,10 +28,6 @@ function getKey(): Buffer {
 
 const ALG = "aes-256-gcm";
 
-/**
- * Encrypts a UTF-8 string and returns a base64 string.
- * Layout: [ 12 bytes IV | 16 bytes auth tag | ciphertext ]
- */
 export function encrypt(plain: string): string {
   const KEY = getKey();
   const iv = randomBytes(12);
@@ -50,9 +39,6 @@ export function encrypt(plain: string): string {
   return Buffer.concat([iv, tag, enc]).toString("base64");
 }
 
-/**
- * Decrypts a base64 string produced by `encrypt` back to UTF-8 text.
- */
 export function decrypt(b64: string): string {
   const KEY = getKey();
   const buf = Buffer.from(b64, "base64");

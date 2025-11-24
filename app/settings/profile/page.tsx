@@ -1,4 +1,4 @@
-// app/settings/profile/page.tsx
+
 import { prisma } from "@/lib/prisma";
 import { authUserId } from "@/lib/auth";
 import ProfileForm from "../ProfileForm";

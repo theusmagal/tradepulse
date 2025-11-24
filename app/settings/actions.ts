@@ -1,4 +1,4 @@
-// app/settings/actions.ts
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
@@ -45,7 +45,6 @@ export async function addBinanceKey(formData: FormData) {
 
 export async function revokeApiKey(id: string) {
   const userId = await authUserId();
-  // Enforce ownership (and avoids "unused var" warning)
   await prisma.apiKey.updateMany({
     where: { id, userId },
     data: { status: "revoked" },

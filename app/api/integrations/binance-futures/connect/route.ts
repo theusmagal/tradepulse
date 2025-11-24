@@ -1,4 +1,4 @@
-// app/api/integrations/binance-futures/connect/route.ts
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authUserId } from "@/lib/auth";
@@ -36,15 +36,27 @@ export async function POST(req: Request) {
 
     const { apiKey, apiSecret, label } = parsed.data;
 
-    // 1) Verify with Binance Futures
     const res = await verifyBinanceKey(apiKey, apiSecret);
     if (!res.ok) {
       console.error("[binance-futures] verification failed:", res);
+
+      if ((res as any).status === 451) {
+        return NextResponse.json(
+          {
+            ok: false,
+            reason: "region_blocked",
+            message:
+              "Binance Futures API is restricted in your region (HTTP 451). Please use CSV import instead.",
+            details: res,
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         {
-          error:
-            "Binance futures API key verification failed. " +
-            "Check that Futures is enabled and no IP whitelist blocks Vercel.",
+          ok: false,
+          error: "Binance futures API key verification failed.",
           details: res,
         },
         { status: 400 }
@@ -56,7 +68,6 @@ export async function POST(req: Request) {
     const keyLast4 = apiKey.slice(-4);
 
     await prisma.$transaction(async (tx) => {
-      // BrokerAccount record (main object we’ll use for syncing)
       await tx.brokerAccount.create({
         data: {
           userId,
@@ -67,7 +78,6 @@ export async function POST(req: Request) {
         },
       });
 
-      // ApiKey record used by your Integrations UI
       await tx.apiKey.create({
         data: {
           userId,

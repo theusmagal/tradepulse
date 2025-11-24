@@ -1,4 +1,4 @@
-// app/pricing/page.tsx
+
 import PricingTable from "../components/PricingTable";
 import Footer from "../components/Footer";
 

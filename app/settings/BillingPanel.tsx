@@ -1,4 +1,4 @@
-// app/settings/BillingPanel.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -6,16 +6,12 @@ import { useState } from "react";
 type Plan = "PRO_MONTHLY" | "PRO_ANNUAL";
 
 type Props = {
-  /** Current paid plan; omit or undefined means not subscribed */
   plan?: Plan;
-  /** Stripe customer portal URL (no longer used; kept for compatibility) */
   portalUrl?: string | null;
-  /** ISO string; when in the future, shows active trial */
   trialEndsAt?: string | null;
 };
 
 function formatDateStable(d: Date): string {
-  // Locale-independent: 2025-11-27
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");

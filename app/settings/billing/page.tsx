@@ -15,7 +15,6 @@ export default async function BillingPage() {
     select: { plan: true, trialEndsAt: true },
   });
 
-  // strictly type: Plan | undefined
   const plan = (user?.plan ?? undefined) as Plan | undefined;
   const trialEndsAt = user?.trialEndsAt ? user.trialEndsAt.toISOString() : null;
 

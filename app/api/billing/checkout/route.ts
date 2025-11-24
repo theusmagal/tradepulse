@@ -76,7 +76,6 @@ export async function POST(req: Request) {
       try {
         await stripe.customers.update(customerId, { metadata: { userId } });
       } catch {
-        /* ignore */
       }
     }
 
@@ -91,9 +90,9 @@ export async function POST(req: Request) {
       line_items: [{ price: priceIdFor(plan), quantity: 1 }],
       subscription_data: {
         trial_period_days: 14,
-        metadata: { userId, plan }, // <-- plan now included on the subscription
+        metadata: { userId, plan }, 
       },
-      metadata: { userId, plan },    // keep plan on the session too
+      metadata: { userId, plan },    
       success_url: `${appUrl}/dashboard?welcome=1`,
       cancel_url: `${appUrl}/pricing?canceled=1`,
     });

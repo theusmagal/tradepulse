@@ -26,10 +26,8 @@ export async function requireMember(): Promise<{ userId: string }> {
   return { userId };
 }
 
-/** membership plan types */
 export type Plan = "free" | "monthly" | "yearly";
 
-/** membership object model */
 export type Membership = {
   userId: string;
   plan: Plan;
@@ -37,7 +35,6 @@ export type Membership = {
   currentPeriodEnd?: Date | null;
 };
 
-/** returns true if membership is currently valid */
 export function isActive(m: Membership): boolean {
   if (!m.active) return false;
   if (m.currentPeriodEnd && m.currentPeriodEnd < new Date()) return false;
