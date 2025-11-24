@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { parse } from "csv-parse/sync";
 import { authUserId } from "@/lib/auth";
@@ -17,6 +16,7 @@ type ExecutionInput = {
   qty: number;
   price: number;
   fee: number;
+  realizedPnl: number;
   execTime: Date;
 };
 
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Ensure a broker account exists for Binance Futures (CSV-based)
     let brokerAccount = await prisma.brokerAccount.findFirst({
       where: { userId, broker: "binance-futures" },
     });
@@ -85,7 +86,15 @@ export async function POST(req: Request) {
       const priceRaw = row["Price"] || row["Avg Price"] || row["price"];
       const feeRaw = row["Fee"] || row["Commission"] || row["fee"];
 
+      // Realized PnL – adapt these keys to your Binance CSV header
+      const realizedRaw =
+        row["Realized PnL"] ||
+        row["Realized Profit"] ||
+        row["Realized PNL"] ||
+        row["realizedPnl"];
+
       if (!symbol || !sideRaw || !qtyRaw || !priceRaw) {
+        // skip incomplete rows
         continue;
       }
 
@@ -98,6 +107,7 @@ export async function POST(req: Request) {
       const qty = Number(qtyRaw) || 0;
       const price = Number(priceRaw) || 0;
       const fee = feeRaw ? Number(feeRaw) || 0 : 0;
+      const realizedPnl = realizedRaw ? Number(realizedRaw) || 0 : 0;
 
       const dateStr =
         row["Date(UTC)"] ||
@@ -122,6 +132,7 @@ export async function POST(req: Request) {
         qty,
         price,
         fee,
+        realizedPnl,
         execTime,
       });
     }
@@ -133,7 +144,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Insert executions
     await prisma.execution.createMany({
       data: executionsData as unknown as Prisma.ExecutionCreateManyInput[],
       skipDuplicates: true,
