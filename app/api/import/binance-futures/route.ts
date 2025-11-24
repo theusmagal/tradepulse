@@ -1,3 +1,4 @@
+// app/api/import/binance-futures/route.ts
 import { NextResponse } from "next/server";
 import { parse } from "csv-parse/sync";
 import { authUserId } from "@/lib/auth";
@@ -16,8 +17,8 @@ type ExecutionInput = {
   qty: number;
   price: number;
   fee: number;
-  realizedPnl: number;
   execTime: Date;
+  realizedPnl: number; // 👈 NEW
 };
 
 export async function POST(req: Request) {
@@ -27,7 +28,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Ensure a broker account exists for Binance Futures (CSV-based)
     let brokerAccount = await prisma.brokerAccount.findFirst({
       where: { userId, broker: "binance-futures" },
     });
@@ -86,15 +86,14 @@ export async function POST(req: Request) {
       const priceRaw = row["Price"] || row["Avg Price"] || row["price"];
       const feeRaw = row["Fee"] || row["Commission"] || row["fee"];
 
-      // Realized PnL – adapt these keys to your Binance CSV header
+      // 👇 from your screenshot, the column is "Realized Profit"
       const realizedRaw =
-        row["Realized PnL"] ||
         row["Realized Profit"] ||
+        row["Realized PnL"] ||
         row["Realized PNL"] ||
         row["realizedPnl"];
 
       if (!symbol || !sideRaw || !qtyRaw || !priceRaw) {
-        // skip incomplete rows
         continue;
       }
 
@@ -128,12 +127,12 @@ export async function POST(req: Request) {
       executionsData.push({
         brokerAccountId: brokerAccount.id,
         symbol,
-        side, // "BUY" | "SELL"
+        side,
         qty,
         price,
         fee,
-        realizedPnl,
         execTime,
+        realizedPnl,
       });
     }
 
