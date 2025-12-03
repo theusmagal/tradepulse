@@ -69,7 +69,8 @@ export default function DashboardClient({
   const [loading, setLoading] = useState(false);
 
   const tz = useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", []
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    []
   );
 
   const now = new Date();
@@ -96,7 +97,7 @@ export default function DashboardClient({
         setData((prev) => ({
           ...prev,
           ...json,
-          calendar: prev.calendar, 
+          calendar: prev.calendar,
         }));
       })
       .finally(() => active && setLoading(false));
@@ -200,7 +201,8 @@ export default function DashboardClient({
       {/* Top strip: Total P&L + Motivation banner */}
       <section className="flex flex-col md:flex-row gap-4">
         <div className="md:w-[420px]">
-          <KPI label="Total P&L" value={fmtUsd(data.kpis.netPnl)} forceGreen />
+          {/* removed forceGreen so color follows sign of netPnl */}
+          <KPI label="Total P&L" value={fmtUsd(data.kpis.netPnl)} />
         </div>
 
         <div className="glass flex-1 p-4 md:p-5 flex items-center gap-4">
