@@ -168,7 +168,7 @@ export default function TradesTable({
   if (!rows.length) {
     return (
       <div className="glass p-4 self-start text-sm text-zinc-400">
-        <div className="mb-1 font-medium">Recent trades</div>
+        <div className="mb-1 font-medium">Trades</div>
         {loading ? "Loading trades…" : "No trades to display yet."}
       </div>
     );

@@ -102,8 +102,8 @@ model Execution {
   price           Decimal       @db.Decimal(18, 6)
   fee             Decimal       @db.Decimal(18, 6)
 
-  // Realized PnL per execution (from CSV)
-  realizedPnl     Decimal       @db.Decimal(18, 2) @default(0)
+  // Realized PnL per execution (from CSV / API)
+  realizedPnl     Decimal?      @db.Decimal(18, 6)
 
   execTime        DateTime
   tradeId         String?
@@ -114,8 +114,10 @@ model Execution {
 
   @@index([brokerAccountId, execTime])
   @@index([brokerAccountId, symbol, execTime])
-}
 
+  // prevents importing the same execution twice
+  @@unique([brokerAccountId, symbol, side, qty, price, execTime, fee, realizedPnl])
+}
 
 model Trade {
   id              String        @id @default(cuid())
