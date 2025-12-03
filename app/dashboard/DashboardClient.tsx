@@ -38,7 +38,13 @@ const MOTIVATION_TOUGH = [
 ];
 
 type Summary = {
-  kpis: { netPnl: number; winRate: number; profitFactor: number; avgR: number; tradeCount: number };
+  kpis: {
+    netPnl: number;
+    winRate: number;
+    profitFactor: number;
+    avgR: number;
+    tradeCount: number;
+  };
   equity: { x: number; y: number }[];
   calendar: { day: number; pnl: number; trades: number }[];
   trades: {
@@ -154,7 +160,8 @@ export default function DashboardClient({
   const phraseOfDay = useMemo(() => {
     const millisPerDay = 24 * 60 * 60 * 1000;
     const dayIndex = Math.floor(Date.now() / millisPerDay);
-    const source = data.kpis.netPnl >= 0 ? MOTIVATION_POSITIVE : MOTIVATION_TOUGH;
+    const source =
+      data.kpis.netPnl >= 0 ? MOTIVATION_POSITIVE : MOTIVATION_TOUGH;
     return source[dayIndex % source.length];
   }, [data.kpis.netPnl]);
 
@@ -201,8 +208,12 @@ export default function DashboardClient({
       {/* Top strip: Total P&L + Motivation banner */}
       <section className="flex flex-col md:flex-row gap-4">
         <div className="md:w-[420px]">
-          {/* removed forceGreen so color follows sign of netPnl */}
-          <KPI label="Total P&L" value={fmtUsd(data.kpis.netPnl)} />
+          <KPI
+            label="Total P&L"
+            value={fmtUsd(data.kpis.netPnl)}
+            positive={data.kpis.netPnl > 0}
+            negative={data.kpis.netPnl < 0}
+          />
         </div>
 
         <div className="glass flex-1 p-4 md:p-5 flex items-center gap-4">
@@ -226,7 +237,9 @@ export default function DashboardClient({
 
       {/* Balance growth chart (labels/tooltips use local timezone) */}
       <section className="glass p-4">
-        <div className="mb-2 text-sm text-zinc-400">Balance growth — {prettyRange}</div>
+        <div className="mb-2 text-sm text-zinc-400">
+          Balance growth — {prettyRange}
+        </div>
         <SparklineInteractive
           data={data.equity}
           className="mt-2 cursor-crosshair"

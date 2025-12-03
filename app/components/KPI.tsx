@@ -3,13 +3,15 @@ export default function KPI({
   value,
   sub,
   delta,
-  forceGreen = false, // NEW
+  positive,
+  negative,
 }: {
   label: string;
-  value: string;
+  value: string | number;
   sub?: string;
   delta?: number;
-  forceGreen?: boolean; // NEW
+  positive?: boolean;
+  negative?: boolean;
 }) {
   const badge =
     delta === undefined
@@ -29,10 +31,16 @@ export default function KPI({
           </span>
         );
 
+  const color = positive
+    ? "text-emerald-400"
+    : negative
+      ? "text-red-400"
+      : "text-zinc-200";
+
   return (
     <div className="glass p-4">
       <div className="flex items-baseline gap-2">
-        <div className={`text-2xl font-semibold ${forceGreen ? "text-emerald-400" : ""}`}>
+        <div className={`text-2xl font-semibold ${color}`}>
           {value}
         </div>
         {badge}
