@@ -1,4 +1,4 @@
-// app/api/me/summary/route.ts
+
 import { NextResponse } from "next/server";
 import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -28,32 +28,22 @@ function daysInMonth(year: number, month1to12: number): number {
   return new Date(year, month1to12, 0).getDate();
 }
 
-// We still treat each execution as a row in the "Recent trades" table
 function buildTrades(execs: Execution[]) {
-  return execs.map((e) => ({
-    id: e.id,
-    symbol: e.symbol,
-    side: e.side, // "BUY" | "SELL"
-    qty: e.qty.toString(),
-    price: e.price.toString(),
-    pnl: Number(e.realizedPnl ?? 0),
-    time: e.execTime.toISOString(),
-  }));
+  return execs
+    .filter((e) => Number(e.realizedPnl ?? 0) !== 0)
+    .map((e) => ({
+      id: e.id,
+      symbol: e.symbol,
+      side: e.side, // "BUY" | "SELL"
+      qty: e.qty.toString(),
+      price: e.price.toString(),
+      pnl: Number(e.realizedPnl ?? 0),
+      time: e.execTime.toISOString(),
+    }));
 }
 
-/**
- * KPIs are computed only from "real trades":
- * executions where realizedPnl !== 0.
- * This matches how traders think about wins/losses.
- */
 function buildKpis(execs: Execution[]) {
-  // Convert to numbers and drop flat executions
-  const realizedValues = execs
-    .map((e) => Number(e.realizedPnl ?? 0))
-    .filter((v) => v !== 0);
-
-  const tradeCount = realizedValues.length;
-
+  const tradeCount = execs.length;
   if (!tradeCount) {
     return {
       netPnl: 0,
@@ -64,16 +54,16 @@ function buildKpis(execs: Execution[]) {
     };
   }
 
-  const netPnl = realizedValues.reduce((a, v) => a + v, 0);
+  const realized = execs.map((e) => Number(e.realizedPnl ?? 0));
+  const netPnl = realized.reduce((a, v) => a + v, 0);
 
-  const wins = realizedValues.filter((v) => v > 0);
-  const losses = realizedValues.filter((v) => v < 0);
+  const wins = realized.filter((v) => v > 0);
+  const losses = realized.filter((v) => v < 0);
 
   const grossWins = wins.reduce((a, v) => a + v, 0);
   const grossLossesAbs = Math.abs(losses.reduce((a, v) => a + v, 0));
 
-  const winRate = Math.round((wins.length / tradeCount) * 100);
-
+  const winRate = tradeCount ? Math.round((wins.length / tradeCount) * 100) : 0;
   const profitFactor =
     grossLossesAbs > 0
       ? Number((grossWins / grossLossesAbs).toFixed(2))
@@ -90,7 +80,7 @@ function buildKpis(execs: Execution[]) {
     winRate,
     profitFactor,
     avgR,
-    tradeCount, // number of non-zero PnL trades
+    tradeCount,
   };
 }
 
@@ -116,7 +106,7 @@ function buildEquity(execs: Execution[]) {
 function buildCalendar(allExecs: Execution[], ymParam: string | null) {
   const now = new Date();
   let year = now.getUTCFullYear();
-  let month1 = now.getUTCMonth() + 1; // 1..12
+  let month1 = now.getUTCMonth() + 1; 
 
   if (ymParam) {
     const [yStr, mStr] = ymParam.split("-");
@@ -142,7 +132,7 @@ function buildCalendar(allExecs: Execution[], ymParam: string | null) {
       dayMap[day] = { pnl: 0, trades: 0 };
     }
     dayMap[day].pnl += Number(e.realizedPnl ?? 0);
-    dayMap[day].trades += 1; // calendar still counts all fills
+    dayMap[day].trades += 1;
   }
 
   const calendar = Array.from({ length: dim }, (_, i) => {
@@ -168,7 +158,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Get all Binance Futures broker accounts for this user
   const brokerAccounts = await prisma.brokerAccount.findMany({
     where: {
       userId,
@@ -195,7 +184,6 @@ export async function GET(req: Request) {
 
   const accountIds = brokerAccounts.map((b) => b.id);
 
-  // Fetch all executions for these accounts
   const allExecs = await prisma.execution.findMany({
     where: {
       brokerAccountId: { in: accountIds },
@@ -203,17 +191,15 @@ export async function GET(req: Request) {
     orderBy: { execTime: "asc" },
   });
 
-  // 1) Range-based subset for KPIs / equity / recent trades table
   const from = rangeStart(range);
   const rangeExecs: Execution[] = from
     ? allExecs.filter((e) => e.execTime >= from)
     : allExecs;
 
-  const trades = buildTrades(rangeExecs);   // all fills in range
-  const kpis = buildKpis(rangeExecs);       // only non-zero PnL trades
+  const trades = buildTrades(rangeExecs); 
+  const kpis = buildKpis(rangeExecs);
   const equity = buildEquity(rangeExecs);
 
-  // 2) Calendar for selected month (or current month)
   const calendar = buildCalendar(allExecs, ym);
 
   return NextResponse.json({

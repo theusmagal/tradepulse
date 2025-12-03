@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { fmtQty, pnlClass } from "@/lib/format";
 
@@ -17,22 +16,6 @@ type Trade = {
 
 type ColKey = "time" | "symbol" | "side" | "qty" | "price" | "pnl";
 
-type ApiExecution = {
-  id: string;
-  symbol: string;
-  side: "BUY" | "SELL";
-  qty: string | number;
-  price: string | number;
-  fee: string | number;
-  execTime: string;
-};
-
-type ApiResponse = {
-  accounts?: { id: string; label: string | null }[];
-  executions?: ApiExecution[];
-  error?: string;
-};
-
 export default function TradesTable({
   rows: initialRows,
   timeZone,
@@ -40,80 +23,13 @@ export default function TradesTable({
   rows: Trade[];
   timeZone?: string;
 }) {
-  const [liveRows, setLiveRows] = useState<Trade[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
   const [sortBy, setSortBy] = useState<ColKey>("time");
   const [asc, setAsc] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setLoadError(null);
-
-        const res = await fetch("/api/me/binance-futures/executions", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          const msg = text || `HTTP ${res.status}`;
-          if (!cancelled) {
-            setLoadError(`Failed to load executions (${msg})`);
-            setLiveRows(null);
-          }
-          return;
-        }
-
-        const data = (await res.json()) as ApiResponse;
-
-        if (!data.executions || data.executions.length === 0) {
-          if (!cancelled) {
-            setLiveRows(null);
-          }
-          return;
-        }
-
-        const mapped: Trade[] = data.executions.map((e) => ({
-          id: e.id,
-          symbol: e.symbol,
-          side: e.side,
-          qty: String(e.qty ?? "0"),
-          price: String(e.price ?? "0"),
-          pnl: 0,
-          time: e.execTime,
-        }));
-
-        if (!cancelled) {
-          setLiveRows(mapped);
-        }
-      } catch {
-        if (!cancelled) {
-          setLoadError("Network error while loading executions.");
-          setLiveRows(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const rows: Trade[] =
-    liveRows && liveRows.length > 0 ? liveRows : initialRows;
+  // We now ONLY use the rows that come from /api/me/summary
+  const rows: Trade[] = initialRows;
 
   const tz = useMemo(
     () => timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -163,13 +79,12 @@ export default function TradesTable({
   const go = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
   const ROW_H = 40;
-  const usingLive = !!liveRows && liveRows.length > 0;
 
   if (!rows.length) {
     return (
       <div className="glass p-4 self-start text-sm text-zinc-400">
-        <div className="mb-1 font-medium">Trades</div>
-        {loading ? "Loading trades…" : "No trades to display yet."}
+        <div className="mb-1 font-medium">Closed trades</div>
+        No trades to display yet.
       </div>
     );
   }
@@ -178,21 +93,13 @@ export default function TradesTable({
     <div className="glass p-4 overflow-x-auto self-start">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm text-zinc-400">
-          Recent trades{" "}
-          {usingLive ? "(Binance Futures CSV)" : "(sample data)"}
+          Recent closed trades (PnL ≠ 0)
         </div>
         <div className="text-xs text-zinc-400">
           Page <span className="text-zinc-200">{safePage}</span> of{" "}
           <span className="text-zinc-200">{totalPages}</span>
         </div>
       </div>
-
-      {loading && (
-        <p className="mb-2 text-xs text-zinc-400">Loading trades…</p>
-      )}
-      {loadError && (
-        <p className="mb-2 text-xs text-amber-400">{loadError}</p>
-      )}
 
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-zinc-900/60 backdrop-blur text-left text-zinc-400">
