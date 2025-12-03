@@ -28,7 +28,7 @@ function daysInMonth(year: number, month1to12: number): number {
   return new Date(year, month1to12, 0).getDate();
 }
 
-// Treat each execution as a “trade” for now
+// We still treat each execution as a row in the "Recent trades" table
 function buildTrades(execs: Execution[]) {
   return execs.map((e) => ({
     id: e.id,
@@ -41,8 +41,19 @@ function buildTrades(execs: Execution[]) {
   }));
 }
 
+/**
+ * KPIs are computed only from "real trades":
+ * executions where realizedPnl !== 0.
+ * This matches how traders think about wins/losses.
+ */
 function buildKpis(execs: Execution[]) {
-  const tradeCount = execs.length;
+  // Convert to numbers and drop flat executions
+  const realizedValues = execs
+    .map((e) => Number(e.realizedPnl ?? 0))
+    .filter((v) => v !== 0);
+
+  const tradeCount = realizedValues.length;
+
   if (!tradeCount) {
     return {
       netPnl: 0,
@@ -53,18 +64,22 @@ function buildKpis(execs: Execution[]) {
     };
   }
 
-  const realized = execs.map((e) => Number(e.realizedPnl ?? 0));
-  const netPnl = realized.reduce((a, v) => a + v, 0);
+  const netPnl = realizedValues.reduce((a, v) => a + v, 0);
 
-  const wins = realized.filter((v) => v > 0);
-  const losses = realized.filter((v) => v < 0);
+  const wins = realizedValues.filter((v) => v > 0);
+  const losses = realizedValues.filter((v) => v < 0);
 
   const grossWins = wins.reduce((a, v) => a + v, 0);
   const grossLossesAbs = Math.abs(losses.reduce((a, v) => a + v, 0));
 
-  const winRate = tradeCount ? Math.round((wins.length / tradeCount) * 100) : 0;
+  const winRate = Math.round((wins.length / tradeCount) * 100);
+
   const profitFactor =
-    grossLossesAbs > 0 ? Number((grossWins / grossLossesAbs).toFixed(2)) : wins.length ? Infinity : 0;
+    grossLossesAbs > 0
+      ? Number((grossWins / grossLossesAbs).toFixed(2))
+      : wins.length
+      ? Infinity
+      : 0;
 
   const avgWin = wins.length ? grossWins / wins.length : 0;
   const avgLossAbs = losses.length ? grossLossesAbs / losses.length : 0;
@@ -75,7 +90,7 @@ function buildKpis(execs: Execution[]) {
     winRate,
     profitFactor,
     avgR,
-    tradeCount,
+    tradeCount, // number of non-zero PnL trades
   };
 }
 
@@ -127,7 +142,7 @@ function buildCalendar(allExecs: Execution[], ymParam: string | null) {
       dayMap[day] = { pnl: 0, trades: 0 };
     }
     dayMap[day].pnl += Number(e.realizedPnl ?? 0);
-    dayMap[day].trades += 1;
+    dayMap[day].trades += 1; // calendar still counts all fills
   }
 
   const calendar = Array.from({ length: dim }, (_, i) => {
@@ -163,7 +178,6 @@ export async function GET(req: Request) {
   });
 
   if (!brokerAccounts.length) {
-    // No accounts → empty summary
     const now = Date.now();
     return NextResponse.json({
       kpis: {
@@ -181,7 +195,7 @@ export async function GET(req: Request) {
 
   const accountIds = brokerAccounts.map((b) => b.id);
 
-  // Fetch all executions for these accounts (we'll slice by range/month in memory)
+  // Fetch all executions for these accounts
   const allExecs = await prisma.execution.findMany({
     where: {
       brokerAccountId: { in: accountIds },
@@ -189,14 +203,14 @@ export async function GET(req: Request) {
     orderBy: { execTime: "asc" },
   });
 
-  // 1) Range-based subset for KPIs / equity / trades
+  // 1) Range-based subset for KPIs / equity / recent trades table
   const from = rangeStart(range);
   const rangeExecs: Execution[] = from
     ? allExecs.filter((e) => e.execTime >= from)
     : allExecs;
 
-  const trades = buildTrades(rangeExecs);
-  const kpis = buildKpis(rangeExecs);
+  const trades = buildTrades(rangeExecs);   // all fills in range
+  const kpis = buildKpis(rangeExecs);       // only non-zero PnL trades
   const equity = buildEquity(rangeExecs);
 
   // 2) Calendar for selected month (or current month)
