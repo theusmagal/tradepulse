@@ -1,3 +1,4 @@
+// components/TradesTable.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -17,7 +18,7 @@ type Trade = {
 type ColKey = "time" | "symbol" | "side" | "qty" | "price" | "pnl";
 
 export default function TradesTable({
-  rows: initialRows,
+  rows,
   timeZone,
 }: {
   rows: Trade[];
@@ -27,9 +28,6 @@ export default function TradesTable({
   const [asc, setAsc] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
-
-  // We now ONLY use the rows that come from /api/me/summary
-  const rows: Trade[] = initialRows;
 
   const tz = useMemo(
     () => timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -66,6 +64,7 @@ export default function TradesTable({
   const start = (safePage - 1) * pageSize;
   const pageRows = sorted.slice(start, start + pageSize);
   const fillers = Math.max(0, pageSize - pageRows.length);
+  const ROW_H = 40;
 
   const changeSort = (k: ColKey) => {
     if (sortBy === k) setAsc(!asc);
@@ -78,12 +77,10 @@ export default function TradesTable({
 
   const go = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
-  const ROW_H = 40;
-
   if (!rows.length) {
     return (
       <div className="glass p-4 self-start text-sm text-zinc-400">
-        <div className="mb-1 font-medium">Closed trades</div>
+        <div className="mb-1 font-medium">Trades</div>
         No trades to display yet.
       </div>
     );
@@ -92,9 +89,7 @@ export default function TradesTable({
   return (
     <div className="glass p-4 overflow-x-auto self-start">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm text-zinc-400">
-          Recent closed trades (PnL ≠ 0)
-        </div>
+        <div className="text-sm text-zinc-400">Recent trades (CSV)</div>
         <div className="text-xs text-zinc-400">
           Page <span className="text-zinc-200">{safePage}</span> of{" "}
           <span className="text-zinc-200">{totalPages}</span>
@@ -152,8 +147,8 @@ export default function TradesTable({
                 className={`pr-3 ${pnlClass(t.pnl)}`}
                 style={{ height: ROW_H, paddingTop: 8, paddingBottom: 8 }}
               >
-                {t.pnl >= 0 ? "+" : ""}
-                {t.pnl.toFixed(2)}
+                {t.pnl >= 0 ? "+" : "-"}
+                {Math.abs(t.pnl).toFixed(2)}
               </td>
             </tr>
           ))}
@@ -261,7 +256,7 @@ function header(
 function keyVal(t: Trade, k: ColKey): number | string {
   switch (k) {
     case "time":
-      return +new Date(t.time); // numeric timestamp
+      return +new Date(t.time);
     case "qty":
       return Number(t.qty);
     case "price":

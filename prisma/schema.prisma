@@ -139,6 +139,9 @@ model Trade {
 
   @@index([brokerAccountId, closeTime])
   @@index([symbol])
+
+  // NEW: lets us safely use createMany(..., skipDuplicates: true)
+  @@unique([brokerAccountId, symbol, side, closeTime, qty, netPnl])
 }
 
 model DailyMetric {

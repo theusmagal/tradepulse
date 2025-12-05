@@ -1,10 +1,8 @@
-
 export const fmtUsd = (
   n: number,
   { signed = false }: { signed?: boolean } = {}
 ) => {
   const abs = Math.abs(n);
-
   const usd = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -22,7 +20,6 @@ export const fmtUsd = (
   if (n < 0) return `-${usd}`;
   return usd;
 };
-
 
 export const fmtPct = (n: number) => `${Math.round(n)}%`;
 
