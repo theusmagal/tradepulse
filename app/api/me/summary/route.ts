@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { Trade as TradeModel } from "@prisma/client";
+import type { Execution } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,21 +28,21 @@ function daysInMonth(year: number, month1to12: number): number {
   return new Date(year, month1to12, 0).getDate();
 }
 
-// ---- Treat each row in Trade as a trade ----
-function buildTrades(trades: TradeModel[]) {
-  return trades.map((t) => ({
-    id: t.id,
-    symbol: t.symbol,
-    side: t.side, // "BUY" | "SELL"
-    qty: t.qty.toString(),
-    price: t.avgExit.toString(),
-    pnl: Number(t.netPnl ?? 0),
-    time: t.closeTime.toISOString(),
+// Treat each execution as a “trade” for now
+function buildTrades(execs: Execution[]) {
+  return execs.map((e) => ({
+    id: e.id,
+    symbol: e.symbol,
+    side: e.side, // "BUY" | "SELL"
+    qty: e.qty.toString(),
+    price: e.price.toString(),
+    pnl: Number(e.realizedPnl ?? 0),
+    time: e.execTime.toISOString(),
   }));
 }
 
-function buildKpis(trades: TradeModel[]) {
-  const tradeCount = trades.length;
+function buildKpis(execs: Execution[]) {
+  const tradeCount = execs.length;
   if (!tradeCount) {
     return {
       netPnl: 0,
@@ -53,7 +53,7 @@ function buildKpis(trades: TradeModel[]) {
     };
   }
 
-  const realized = trades.map((t) => Number(t.netPnl ?? 0));
+  const realized = execs.map((e) => Number(e.realizedPnl ?? 0));
   const netPnl = realized.reduce((a, v) => a + v, 0);
 
   const wins = realized.filter((v) => v > 0);
@@ -83,26 +83,26 @@ function buildKpis(trades: TradeModel[]) {
   };
 }
 
-function buildEquity(trades: TradeModel[]) {
+function buildEquity(execs: Execution[]) {
   const START_BALANCE = 10_000;
-  if (!trades.length) {
+  if (!execs.length) {
     const now = Date.now();
     return [{ x: now, y: START_BALANCE }];
   }
 
   let running = START_BALANCE;
-  const points = trades
+  const points = execs
     .slice()
-    .sort((a, b) => a.closeTime.getTime() - b.closeTime.getTime())
-    .map((t) => {
-      running += Number(t.netPnl ?? 0);
-      return { x: t.closeTime.getTime(), y: Number(running.toFixed(2)) };
+    .sort((a, b) => a.execTime.getTime() - b.execTime.getTime())
+    .map((e) => {
+      running += Number(e.realizedPnl ?? 0);
+      return { x: e.execTime.getTime(), y: Number(running.toFixed(2)) };
     });
 
   return points;
 }
 
-function buildCalendar(allTrades: TradeModel[], ymParam: string | null) {
+function buildCalendar(allExecs: Execution[], ymParam: string | null) {
   const now = new Date();
   let year = now.getUTCFullYear();
   let month1 = now.getUTCMonth() + 1; // 1..12
@@ -120,8 +120,8 @@ function buildCalendar(allTrades: TradeModel[], ymParam: string | null) {
   const dim = daysInMonth(year, month1);
   const dayMap: Record<number, { pnl: number; trades: number }> = {};
 
-  for (const t of allTrades) {
-    const d = t.closeTime;
+  for (const e of allExecs) {
+    const d = e.execTime;
     const y = d.getUTCFullYear();
     const m1 = d.getUTCMonth() + 1;
     if (y !== year || m1 !== month1) continue;
@@ -130,7 +130,7 @@ function buildCalendar(allTrades: TradeModel[], ymParam: string | null) {
     if (!dayMap[day]) {
       dayMap[day] = { pnl: 0, trades: 0 };
     }
-    dayMap[day].pnl += Number(t.netPnl ?? 0);
+    dayMap[day].pnl += Number(e.realizedPnl ?? 0);
     dayMap[day].trades += 1;
   }
 
@@ -157,16 +157,18 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Get all Binance Futures broker accounts for this user
-  const brokerAccounts = await prisma.brokerAccount.findMany({
+  // ✅ NEW: fetch executions directly by related brokerAccount + userId
+  const allExecs = await prisma.execution.findMany({
     where: {
-      userId,
-      broker: "binance-futures",
+      brokerAccount: {
+        userId,
+        broker: "binance-futures",
+      },
     },
-    select: { id: true },
+    orderBy: { execTime: "asc" },
   });
 
-  if (!brokerAccounts.length) {
+  if (!allExecs.length) {
     const now = Date.now();
     return NextResponse.json({
       kpis: {
@@ -182,25 +184,18 @@ export async function GET(req: Request) {
     });
   }
 
-  const accountIds = brokerAccounts.map((b) => b.id);
-
-  // Fetch trades for these accounts
-  const allTrades = await prisma.trade.findMany({
-    where: {
-      brokerAccountId: { in: accountIds },
-    },
-    orderBy: { closeTime: "asc" },
-  });
-
+  // 1) Range-based subset for KPIs / equity / trades
   const from = rangeStart(range);
-  const rangeTrades: TradeModel[] = from
-    ? allTrades.filter((t) => t.closeTime >= from)
-    : allTrades;
+  const rangeExecs: Execution[] = from
+    ? allExecs.filter((e) => e.execTime >= from)
+    : allExecs;
 
-  const trades = buildTrades(rangeTrades);
-  const kpis = buildKpis(rangeTrades);
-  const equity = buildEquity(rangeTrades);
-  const calendar = buildCalendar(allTrades, ym);
+  const trades = buildTrades(rangeExecs);
+  const kpis = buildKpis(rangeExecs);
+  const equity = buildEquity(rangeExecs);
+
+  // 2) Calendar for selected month (or current month)
+  const calendar = buildCalendar(allExecs, ym);
 
   return NextResponse.json({
     kpis,
