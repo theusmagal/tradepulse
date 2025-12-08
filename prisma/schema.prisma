@@ -35,7 +35,7 @@ model User {
   // Profile
   name               String?
   timezone           String   @default("UTC")
-  startingBalance    Decimal  @db.Decimal(18, 2) @default(10000) 
+  startingBalance    Decimal  @db.Decimal(18, 2) @default(10000)
 
   // billing and Subscription
   stripeCustomerId   String?  @unique
@@ -92,6 +92,9 @@ model BrokerAccount {
 
   @@index([userId])
   @@index([userId, broker])
+
+  // ensure only one account per (user, broker) and enable upsert where: { userId_broker: { ... } }
+  @@unique([userId, broker], name: "userId_broker")
 }
 
 model Execution {
@@ -141,7 +144,7 @@ model Trade {
   @@index([brokerAccountId, closeTime])
   @@index([symbol])
 
-  // NEW: lets us safely use createMany(..., skipDuplicates: true)
+  // lets us safely use createMany(..., skipDuplicates: true)
   @@unique([brokerAccountId, symbol, side, closeTime, qty, netPnl])
 }
 
@@ -175,7 +178,7 @@ model ApiKey {
 
   status    ApiKeyStatus  @default(active)
   createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  updatedAt DateTime      @default(now())
 
   User      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 

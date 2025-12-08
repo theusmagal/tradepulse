@@ -166,13 +166,17 @@ export async function GET(req: Request) {
       ? Number(user.startingBalance)
       : 10_000;
 
+
   const brokerAccounts = await prisma.brokerAccount.findMany({
     where: {
       userId,
-      broker: "binance-futures",
+      broker: {
+        in: ["binance-futures", "bybit-futures"],
+      },
     },
     select: { id: true },
   });
+
 
   if (!brokerAccounts.length) {
     const now = Date.now();
