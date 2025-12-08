@@ -1,4 +1,4 @@
-// app/api/me/summary/route.ts
+
 import { NextResponse } from "next/server";
 import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -28,7 +28,6 @@ function daysInMonth(year: number, month1to12: number): number {
   return new Date(year, month1to12, 0).getDate();
 }
 
-// Treat each execution as a “trade” for now
 function buildTrades(execs: Execution[]) {
   return execs.map((e) => ({
     id: e.id,
@@ -167,7 +166,6 @@ export async function GET(req: Request) {
       ? Number(user.startingBalance)
       : 10_000;
 
-  // Get all Binance Futures broker accounts for this user
   const brokerAccounts = await prisma.brokerAccount.findMany({
     where: {
       userId,
@@ -194,7 +192,6 @@ export async function GET(req: Request) {
 
   const accountIds = brokerAccounts.map((b) => b.id);
 
-  // Fetch all executions for these accounts
   const allExecs = await prisma.execution.findMany({
     where: {
       brokerAccountId: { in: accountIds },

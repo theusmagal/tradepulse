@@ -1,4 +1,4 @@
-// app/settings/profile/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -84,8 +84,12 @@ export default function ProfileSettingsPage() {
       setTimezone(json.timezone ?? "UTC");
       setStartingBalance(json.startingBalance.toString());
       setMessage("Profile updated.");
-    } catch (e: any) {
-      setError(e.message || "Failed to save profile.");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message || "Failed to save profile.");
+      } else {
+        setError("Failed to save profile.");
+      }
     } finally {
       setSaving(false);
     }
