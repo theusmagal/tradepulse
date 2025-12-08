@@ -30,7 +30,6 @@ const MOTIVATION_POSITIVE = [
 
 const MOTIVATION_TOUGH = [
   "Losses are tuition. Learn fast.",
-  "Red days teach green habits.",
   "Review, adjust, execute.",
   "Cut quick, live to trade.",
   "Great risk = great respect.",
@@ -57,6 +56,7 @@ type Summary = {
     time: string;
   }[];
 };
+
 type RangeKey = "7d" | "30d" | "ytd" | "all";
 
 export default function DashboardClient({
@@ -96,35 +96,24 @@ export default function DashboardClient({
   useEffect(() => {
     let active = true;
     setLoading(true);
-    fetch(`/api/me/summary?range=${range}`, { cache: "no-store" })
+
+    const ym = `${calYear}-${String(calMonth + 1).padStart(2, "0")}`;
+    const params = new URLSearchParams({ range, ym });
+
+    fetch(`/api/me/summary?${params.toString()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((json: Summary) => {
         if (!active) return;
-        setData((prev) => ({
-          ...prev,
-          ...json,
-          calendar: prev.calendar,
-        }));
+        setData(json);
       })
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [range]);
-
-  useEffect(() => {
-    let active = true;
-    const ym = `${calYear}-${String(calMonth + 1).padStart(2, "0")}`;
-    fetch(`/api/me/summary?ym=${ym}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((json: Pick<Summary, "calendar">) => {
-        if (!active) return;
-        setData((prev) => ({ ...prev, calendar: json.calendar }));
+      .finally(() => {
+        if (active) setLoading(false);
       });
+
     return () => {
       active = false;
     };
-  }, [calYear, calMonth]);
+  }, [range, calYear, calMonth]);
 
   const stats = useMemo(() => {
     const wins = data.trades.filter((t) => t.pnl > 0);
@@ -235,7 +224,7 @@ export default function DashboardClient({
         </div>
       </section>
 
-      {/* Balance growth chart (labels/tooltips use local timezone) */}
+      {/* Balance growth chart */}
       <section className="glass p-4">
         <div className="mb-2 text-sm text-zinc-400">
           Balance growth — {prettyRange}
@@ -279,7 +268,7 @@ export default function DashboardClient({
         </div>
       </div>
 
-      {/* extras (histogram labels/tooltips use local timezone) */}
+      {/* extras */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
           <TopSymbols trades={data.trades} />
