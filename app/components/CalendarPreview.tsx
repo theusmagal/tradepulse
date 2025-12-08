@@ -4,7 +4,7 @@ type Day = { day: number; pnl: number; trades: number };
 
 const GREEN_BG = "rgba(34,197,94,0.32)";
 const RED_BG = "rgba(249, 3, 3, 0.28)";
-const NEUTRAL_BG = "rgba(24,24,27,0.85)";
+const NEUTRAL_BG = "rgba(39,39,42,0.9)"; // softer grey
 
 export default function CalendarPreview({
   days,
@@ -98,6 +98,21 @@ export default function CalendarPreview({
           const isNeg = d.pnl < 0;
           const isNoTrades = d.trades === 0;
 
+          if (isNoTrades) {
+            // neutral / empty day: just show date
+            return (
+              <div
+                key={d.day}
+                className="rounded-md border border-white/5 p-2 flex items-start"
+                style={{ backgroundColor: NEUTRAL_BG }}
+              >
+                <div className="text-zinc-400 text-sm font-medium">
+                  {d.day}
+                </div>
+              </div>
+            );
+          }
+
           const bg = isPos ? GREEN_BG : isNeg ? RED_BG : NEUTRAL_BG;
           const pnlClass = isPos
             ? "text-emerald-300"
@@ -112,15 +127,16 @@ export default function CalendarPreview({
               style={{ backgroundColor: bg }}
             >
               <div className="flex items-center justify-between">
-                <div className="text-zinc-200 text-sm font-medium">{d.day}</div>
+                <div className="text-zinc-200 text-sm font-medium">
+                  {d.day}
+                </div>
                 <div className={`text-xs font-semibold ${pnlClass}`}>
                   {d.pnl > 0 && "+"}
                   {d.pnl.toFixed(2)}
                 </div>
               </div>
-              <div className="text-[10px] text-zinc-300 mt-1">
+              <div className="text-[10px] text-zinc-200 mt-1">
                 {d.trades} {d.trades === 1 ? "trade" : "trades"}
-                {isNoTrades && " (no trades)"}
               </div>
             </div>
           );
