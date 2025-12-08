@@ -4,7 +4,7 @@ type Day = { day: number; pnl: number; trades: number };
 
 const GREEN_BG = "rgba(34,197,94,0.32)";
 const RED_BG = "rgba(249, 3, 3, 0.28)";
-const NEUTRAL_BG = "rgba(39,39,42,0.9)"; // softer grey
+const NEUTRAL_BG = "rgba(24,24,27,0.9)"; // subtle dark grey
 
 export default function CalendarPreview({
   days,
@@ -94,50 +94,33 @@ export default function CalendarPreview({
 
         {/* days */}
         {days.map((d) => {
-          const isPos = d.pnl > 0;
-          const isNeg = d.pnl < 0;
-          const isNoTrades = d.trades === 0;
+          const hasTrades = d.trades > 0;
+          const isWin = d.pnl > 0;
+          const isLoss = d.pnl < 0;
 
-          if (isNoTrades) {
-            // neutral / empty day: just show date
-            return (
-              <div
-                key={d.day}
-                className="rounded-md border border-white/5 p-2 flex items-start"
-                style={{ backgroundColor: NEUTRAL_BG }}
-              >
-                <div className="text-zinc-400 text-sm font-medium">
-                  {d.day}
-                </div>
-              </div>
-            );
-          }
-
-          const bg = isPos ? GREEN_BG : isNeg ? RED_BG : NEUTRAL_BG;
-          const pnlClass = isPos
-            ? "text-emerald-300"
-            : isNeg
-            ? "text-red-300"
-            : "text-zinc-300";
+          let bg = NEUTRAL_BG;
+          if (hasTrades && isWin) bg = GREEN_BG;
+          if (hasTrades && isLoss) bg = RED_BG;
 
           return (
             <div
               key={d.day}
-              className="rounded-md border border-white/10 p-2 flex flex-col justify-between"
+              className="rounded-md border border-white/10 p-2"
               style={{ backgroundColor: bg }}
             >
-              <div className="flex items-center justify-between">
-                <div className="text-zinc-200 text-sm font-medium">
-                  {d.day}
-                </div>
-                <div className={`text-xs font-semibold ${pnlClass}`}>
-                  {d.pnl > 0 && "+"}
-                  {d.pnl.toFixed(2)}
-                </div>
-              </div>
-              <div className="text-[10px] text-zinc-200 mt-1">
-                {d.trades} {d.trades === 1 ? "trade" : "trades"}
-              </div>
+              <div className="text-zinc-200">{d.day}</div>
+
+              {hasTrades && (
+                <>
+                  <div className="font-semibold text-white">
+                    {d.pnl > 0 ? "+" : ""}
+                    {d.pnl.toFixed(2)}
+                  </div>
+                  <div className="text-[10px] text-zinc-300">
+                    {d.trades} {d.trades === 1 ? "trade" : "trades"}
+                  </div>
+                </>
+              )}
             </div>
           );
         })}
