@@ -7,8 +7,15 @@ import bcrypt from "bcrypt";
 import { redirect } from "next/navigation";
 
 export const authOptions: NextAuthOptions = {
-  // ❌ trustHost: true,   <-- remove from here
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 1,   
+  },
+
+  jwt: {
+    maxAge: 60 * 60 * 24 * 1, 
+  },
+
   providers: [
     Credentials({
       name: "Credentials",
@@ -27,16 +34,23 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(password, user.password);
         if (!ok) return null;
 
-        return { id: user.id, email: user.email ?? undefined, name: user.name ?? undefined };
+        return {
+          id: user.id,
+          email: user.email ?? undefined,
+          name: user.name ?? undefined,
+        };
       },
     }),
   ],
+
   pages: { signIn: "/auth/login" },
+
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.userId = user.id;
       return token;
     },
+
     async session({ session, token }) {
       if (session.user && token.userId) session.user.id = token.userId;
       return session;
