@@ -33,7 +33,7 @@ function buildTrades(execs: Execution[]) {
   return execs.map((e) => ({
     id: e.id,
     symbol: e.symbol,
-    side: e.side, // "BUY" | "SELL"
+    side: e.side,
     qty: e.qty.toString(),
     price: e.price.toString(),
     pnl: Number(e.realizedPnl ?? 0),
@@ -62,7 +62,7 @@ function buildKpis(execs: Execution[]) {
   const grossWins = wins.reduce((a, v) => a + v, 0);
   const grossLossesAbs = Math.abs(losses.reduce((a, v) => a + v, 0));
 
-  const winRate = tradeCount ? Math.round((wins.length / tradeCount) * 100) : 0;
+  const winRate = Math.round((wins.length / tradeCount) * 100);
   const profitFactor =
     grossLossesAbs > 0
       ? Number((grossWins / grossLossesAbs).toFixed(2))
@@ -83,8 +83,8 @@ function buildKpis(execs: Execution[]) {
   };
 }
 
-function buildEquity(execs: Execution[]) {
-  const START_BALANCE = 10_000;
+function buildEquity(execs: Execution[], startingBalance: number) {
+  const START_BALANCE = startingBalance;
   if (!execs.length) {
     const now = Date.now();
     return [{ x: now, y: START_BALANCE }];
@@ -157,18 +157,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // ✅ NEW: fetch executions directly by related brokerAccount + userId
-  const allExecs = await prisma.execution.findMany({
+  // Get user to read startingBalance
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { startingBalance: true },
+  });
+  const startBalance =
+    user?.startingBalance !== null && user?.startingBalance !== undefined
+      ? Number(user.startingBalance)
+      : 10_000;
+
+  // Get all Binance Futures broker accounts for this user
+  const brokerAccounts = await prisma.brokerAccount.findMany({
     where: {
-      brokerAccount: {
-        userId,
-        broker: "binance-futures",
-      },
+      userId,
+      broker: "binance-futures",
     },
-    orderBy: { execTime: "asc" },
+    select: { id: true },
   });
 
-  if (!allExecs.length) {
+  if (!brokerAccounts.length) {
     const now = Date.now();
     return NextResponse.json({
       kpis: {
@@ -178,13 +186,22 @@ export async function GET(req: Request) {
         avgR: 0,
         tradeCount: 0,
       },
-      equity: [{ x: now, y: 10_000 }],
+      equity: [{ x: now, y: startBalance }],
       calendar: [],
       trades: [],
     });
   }
 
-  // 1) Range-based subset for KPIs / equity / trades
+  const accountIds = brokerAccounts.map((b) => b.id);
+
+  // Fetch all executions for these accounts
+  const allExecs = await prisma.execution.findMany({
+    where: {
+      brokerAccountId: { in: accountIds },
+    },
+    orderBy: { execTime: "asc" },
+  });
+
   const from = rangeStart(range);
   const rangeExecs: Execution[] = from
     ? allExecs.filter((e) => e.execTime >= from)
@@ -192,9 +209,7 @@ export async function GET(req: Request) {
 
   const trades = buildTrades(rangeExecs);
   const kpis = buildKpis(rangeExecs);
-  const equity = buildEquity(rangeExecs);
-
-  // 2) Calendar for selected month (or current month)
+  const equity = buildEquity(rangeExecs, startBalance);
   const calendar = buildCalendar(allExecs, ym);
 
   return NextResponse.json({
