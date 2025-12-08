@@ -105,22 +105,32 @@ export default function CalendarPreview({
           return (
             <div
               key={d.day}
-              className="rounded-md border border-white/10 p-2"
+              className="rounded-md border border-white/10 p-2 flex flex-col justify-between h-20"
               style={{ backgroundColor: bg }}
             >
               <div className="text-zinc-200">{d.day}</div>
 
-              {hasTrades && (
-                <>
-                  <div className="font-semibold text-white">
-                    {d.pnl > 0 ? "+" : ""}
-                    {d.pnl.toFixed(2)}
-                  </div>
-                  <div className="text-[10px] text-zinc-300">
-                    {d.trades} {d.trades === 1 ? "trade" : "trades"}
-                  </div>
-                </>
-              )}
+              {/* keep same vertical space by always rendering 2 more lines */}
+              <div
+                className={
+                  hasTrades
+                    ? "font-semibold text-white"
+                    : "font-semibold text-transparent"
+                }
+              >
+                {hasTrades ? `${d.pnl > 0 ? "+" : ""}${d.pnl.toFixed(2)}` : "0.00"}
+              </div>
+              <div
+                className={
+                  hasTrades
+                    ? "text-[10px] text-zinc-300"
+                    : "text-[10px] text-transparent"
+                }
+              >
+                {hasTrades
+                  ? `${d.trades} ${d.trades === 1 ? "trade" : "trades"}`
+                  : "0 trades"}
+              </div>
             </div>
           );
         })}
