@@ -1,9 +1,7 @@
-
 import crypto from "node:crypto";
 
 const BYBIT_REST_BASE =
   process.env.BYBIT_REST_BASE_URL ?? "https://api.bybit.com";
-
 
 type BybitClosedPnlRow = {
   symbol: string;
@@ -16,7 +14,7 @@ type BybitClosedPnlRow = {
   closedPnl: string;
   openFee: string;
   closeFee: string;
-  createdTime: string; 
+  createdTime: string;
 };
 
 type BybitClosedPnlResult = {
@@ -59,34 +57,45 @@ function buildSignedGet(
   return { url, headers };
 }
 
+/**
+ * Validate Bybit API keys.
+ * Tries both "linear" (old) and "unified" (new unified trading) categories.
+ */
 export async function testBybitKeys(
   apiKey: string,
   apiSecret: string
 ): Promise<boolean> {
-  try {
-    const now = Date.now();
-    const from = now - 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const from = now - 24 * 60 * 60 * 1000;
 
-    const { url, headers } = buildSignedGet(
-      "/v5/position/closed-pnl",
-      {
-        category: "linear",
-        startTime: String(from),
-        endTime: String(now),
-        limit: "1",
-      },
-      apiKey,
-      apiSecret
-    );
+  // Try both derivative categories; whichever succeeds is fine.
+  for (const category of ["linear", "unified"]) {
+    try {
+      const { url, headers } = buildSignedGet(
+        "/v5/position/closed-pnl",
+        {
+          category,
+          startTime: String(from),
+          endTime: String(now),
+          limit: "1",
+        },
+        apiKey,
+        apiSecret
+      );
 
-    const res = await fetch(url, { method: "GET", headers });
-    if (!res.ok) return false;
+      const res = await fetch(url, { method: "GET", headers });
+      if (!res.ok) continue;
 
-    const json = (await res.json()) as BybitClosedPnlResponse;
-    return json.retCode === 0;
-  } catch {
-    return false;
+      const json = (await res.json()) as BybitClosedPnlResponse;
+      if (json.retCode === 0) {
+        return true;
+      }
+    } catch {
+      // ignore and try next category
+    }
   }
+
+  return false;
 }
 
 export type BybitExecution = {
@@ -99,6 +108,10 @@ export type BybitExecution = {
   execTime: Date;
 };
 
+/**
+ * Fetch executions derived from Closed PnL.
+ * We pull from both "linear" and "unified" categories to support all setups.
+ */
 export async function fetchBybitExecutionsFromClosedPnl(
   apiKey: string,
   apiSecret: string,
@@ -106,57 +119,65 @@ export async function fetchBybitExecutionsFromClosedPnl(
   toMs: number
 ): Promise<BybitExecution[]> {
   const executions: BybitExecution[] = [];
-  let cursor: string | undefined;
 
-  do {
-    const params: Record<string, string> = {
-      category: "linear",
-      startTime: String(fromMs),
-      endTime: String(toMs),
-      limit: "100",
-    };
-    if (cursor) params.cursor = cursor;
+  // Fetch from both categories; for most users only one will return data.
+  const categories: string[] = ["linear", "unified"];
 
-    const { url, headers } = buildSignedGet(
-      "/v5/position/closed-pnl",
-      params,
-      apiKey,
-      apiSecret
-    );
+  for (const category of categories) {
+    let cursor: string | undefined;
 
-    const res = await fetch(url, { method: "GET", headers });
-    if (!res.ok) {
-      throw new Error(`Bybit HTTP ${res.status}`);
-    }
+    do {
+      const params: Record<string, string> = {
+        category,
+        startTime: String(fromMs),
+        endTime: String(toMs),
+        limit: "100",
+      };
+      if (cursor) params.cursor = cursor;
 
-    const json = (await res.json()) as BybitClosedPnlResponse;
-    if (json.retCode !== 0) {
-      throw new Error(`Bybit error ${json.retCode}: ${json.retMsg}`);
-    }
+      const { url, headers } = buildSignedGet(
+        "/v5/position/closed-pnl",
+        params,
+        apiKey,
+        apiSecret
+      );
 
-    const list = json.result?.list ?? [];
-    for (const row of list) {
-      const side: "BUY" | "SELL" = row.side === "Buy" ? "BUY" : "SELL";
+      const res = await fetch(url, { method: "GET", headers });
+      if (!res.ok) {
+        // if this category isn't valid for the account, just break out of it
+        break;
+      }
 
-      const qty = Number(row.closedSize || row.qty || 0);
-      const price = Number(row.avgExitPrice || row.orderPrice || 0);
-      const fee = Number(row.openFee || 0) + Number(row.closeFee || 0);
-      const realizedPnl = Number(row.closedPnl || 0);
-      const execTime = new Date(Number(row.createdTime));
+      const json = (await res.json()) as BybitClosedPnlResponse;
+      if (json.retCode !== 0) {
+        // If this category isn't supported, stop trying this one.
+        break;
+      }
 
-      executions.push({
-        symbol: row.symbol,
-        side,
-        qty,
-        price,
-        fee,
-        realizedPnl,
-        execTime,
-      });
-    }
+      const list = json.result?.list ?? [];
+      for (const row of list) {
+        const side: "BUY" | "SELL" = row.side === "Buy" ? "BUY" : "SELL";
 
-    cursor = json.result?.nextPageCursor || undefined;
-  } while (cursor);
+        const qty = Number(row.closedSize || row.qty || 0);
+        const price = Number(row.avgExitPrice || row.orderPrice || 0);
+        const fee = Number(row.openFee || 0) + Number(row.closeFee || 0);
+        const realizedPnl = Number(row.closedPnl || 0);
+        const execTime = new Date(Number(row.createdTime));
+
+        executions.push({
+          symbol: row.symbol,
+          side,
+          qty,
+          price,
+          fee,
+          realizedPnl,
+          execTime,
+        });
+      }
+
+      cursor = json.result?.nextPageCursor || undefined;
+    } while (cursor);
+  }
 
   return executions;
 }
