@@ -29,6 +29,10 @@ type BybitClosedPnlResponse = {
   result?: BybitClosedPnlResult;
 };
 
+/**
+ * Build a signed GET request for Bybit v5.
+ * IMPORTANT: query params must be sorted alphabetically before signing.
+ */
 function buildSignedGet(
   path: string,
   params: Record<string, string>,
@@ -38,13 +42,15 @@ function buildSignedGet(
   const timestamp = Date.now().toString();
   const recvWindow = "5000";
 
-  const search = new URLSearchParams(params).toString();
+  // Sort params alphabetically by key as required by Bybit
+  const sortedEntries = Object.entries(params).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+  const search = new URLSearchParams(sortedEntries).toString();
+
   const preSign = timestamp + apiKey + recvWindow + search;
 
-  const sign = crypto
-    .createHmac("sha256", apiSecret)
-    .update(preSign)
-    .digest("hex");
+  const sign = crypto.createHmac("sha256", apiSecret).update(preSign).digest("hex");
 
   const url = `${BYBIT_REST_BASE}${path}?${search}`;
   const headers = {
@@ -57,45 +63,43 @@ function buildSignedGet(
   return { url, headers };
 }
 
-/**
- * Validate Bybit API keys.
- * Tries both "linear" (old) and "unified" (new unified trading) categories.
- */
 export async function testBybitKeys(
   apiKey: string,
   apiSecret: string
 ): Promise<boolean> {
-  const now = Date.now();
-  const from = now - 24 * 60 * 60 * 1000;
+  try {
+    const now = Date.now();
+    const from = now - 24 * 60 * 60 * 1000;
 
-  // Try both derivative categories; whichever succeeds is fine.
-  for (const category of ["linear", "unified"]) {
-    try {
-      const { url, headers } = buildSignedGet(
-        "/v5/position/closed-pnl",
-        {
-          category,
-          startTime: String(from),
-          endTime: String(now),
-          limit: "1",
-        },
-        apiKey,
-        apiSecret
-      );
+    const { url, headers } = buildSignedGet(
+      "/v5/position/closed-pnl",
+      {
+        category: "linear", // USDT perp under Unified Trading
+        endTime: String(now),
+        limit: "1",
+        startTime: String(from),
+      },
+      apiKey,
+      apiSecret
+    );
 
-      const res = await fetch(url, { method: "GET", headers });
-      if (!res.ok) continue;
-
-      const json = (await res.json()) as BybitClosedPnlResponse;
-      if (json.retCode === 0) {
-        return true;
-      }
-    } catch {
-      // ignore and try next category
+    const res = await fetch(url, { method: "GET", headers });
+    if (!res.ok) {
+      console.error("Bybit test HTTP error:", res.status, await res.text());
+      return false;
     }
-  }
 
-  return false;
+    const json = (await res.json()) as BybitClosedPnlResponse;
+    if (json.retCode !== 0) {
+      console.error("Bybit test API error:", json.retCode, json.retMsg);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Bybit test exception:", err);
+    return false;
+  }
 }
 
 export type BybitExecution = {
@@ -108,10 +112,6 @@ export type BybitExecution = {
   execTime: Date;
 };
 
-/**
- * Fetch executions derived from Closed PnL.
- * We pull from both "linear" and "unified" categories to support all setups.
- */
 export async function fetchBybitExecutionsFromClosedPnl(
   apiKey: string,
   apiSecret: string,
@@ -119,65 +119,60 @@ export async function fetchBybitExecutionsFromClosedPnl(
   toMs: number
 ): Promise<BybitExecution[]> {
   const executions: BybitExecution[] = [];
+  let cursor: string | undefined;
 
-  // Fetch from both categories; for most users only one will return data.
-  const categories: string[] = ["linear", "unified"];
+  do {
+    const params: Record<string, string> = {
+      category: "linear",
+      endTime: String(toMs),
+      limit: "100",
+      startTime: String(fromMs),
+    };
+    if (cursor) params.cursor = cursor;
 
-  for (const category of categories) {
-    let cursor: string | undefined;
+    const { url, headers } = buildSignedGet(
+      "/v5/position/closed-pnl",
+      params,
+      apiKey,
+      apiSecret
+    );
 
-    do {
-      const params: Record<string, string> = {
-        category,
-        startTime: String(fromMs),
-        endTime: String(toMs),
-        limit: "100",
-      };
-      if (cursor) params.cursor = cursor;
+    const res = await fetch(url, { method: "GET", headers });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("Bybit closed-pnl HTTP error:", res.status, text);
+      throw new Error(`Bybit HTTP ${res.status}`);
+    }
 
-      const { url, headers } = buildSignedGet(
-        "/v5/position/closed-pnl",
-        params,
-        apiKey,
-        apiSecret
-      );
+    const json = (await res.json()) as BybitClosedPnlResponse;
+    if (json.retCode !== 0) {
+      console.error("Bybit closed-pnl API error:", json.retCode, json.retMsg);
+      throw new Error(`Bybit error ${json.retCode}: ${json.retMsg}`);
+    }
 
-      const res = await fetch(url, { method: "GET", headers });
-      if (!res.ok) {
-        // if this category isn't valid for the account, just break out of it
-        break;
-      }
+    const list = json.result?.list ?? [];
+    for (const row of list) {
+      const side: "BUY" | "SELL" = row.side === "Buy" ? "BUY" : "SELL";
 
-      const json = (await res.json()) as BybitClosedPnlResponse;
-      if (json.retCode !== 0) {
-        // If this category isn't supported, stop trying this one.
-        break;
-      }
+      const qty = Number(row.closedSize || row.qty || 0);
+      const price = Number(row.avgExitPrice || row.orderPrice || 0);
+      const fee = Number(row.openFee || 0) + Number(row.closeFee || 0);
+      const realizedPnl = Number(row.closedPnl || 0);
+      const execTime = new Date(Number(row.createdTime));
 
-      const list = json.result?.list ?? [];
-      for (const row of list) {
-        const side: "BUY" | "SELL" = row.side === "Buy" ? "BUY" : "SELL";
+      executions.push({
+        symbol: row.symbol,
+        side,
+        qty,
+        price,
+        fee,
+        realizedPnl,
+        execTime,
+      });
+    }
 
-        const qty = Number(row.closedSize || row.qty || 0);
-        const price = Number(row.avgExitPrice || row.orderPrice || 0);
-        const fee = Number(row.openFee || 0) + Number(row.closeFee || 0);
-        const realizedPnl = Number(row.closedPnl || 0);
-        const execTime = new Date(Number(row.createdTime));
-
-        executions.push({
-          symbol: row.symbol,
-          side,
-          qty,
-          price,
-          fee,
-          realizedPnl,
-          execTime,
-        });
-      }
-
-      cursor = json.result?.nextPageCursor || undefined;
-    } while (cursor);
-  }
+    cursor = json.result?.nextPageCursor || undefined;
+  } while (cursor);
 
   return executions;
 }
