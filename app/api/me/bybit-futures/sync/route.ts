@@ -5,7 +5,7 @@ import { decrypt } from "@/lib/encryption";
 import { fetchBybitExecutionsFromClosedPnl } from "@/lib/bybit";
 
 export const runtime = "nodejs";
-export const preferredRegion = ["fra1"];
+export const preferredRegion = "fra1";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_LOOKBACK_DAYS = 90;
@@ -19,7 +19,10 @@ export async function POST() {
   });
 
   if (!account) {
-    return NextResponse.json({ error: "No Bybit futures account connected." }, { status: 400 });
+    return NextResponse.json(
+      { error: "No Bybit futures account connected." },
+      { status: 400 }
+    );
   }
 
   const apiKey = decrypt(account.apiKeyEnc);
@@ -77,7 +80,11 @@ export async function POST() {
     return NextResponse.json({ imported: totalImported });
   } catch (err) {
     console.error("[Bybit sync] error", err);
-    const message = err instanceof Error ? err.message : "Unknown Bybit sync error";
-    return NextResponse.json({ error: `Failed to sync Bybit data: ${message}` }, { status: 500 });
+    const message =
+      err instanceof Error ? err.message : "Unknown Bybit sync error";
+    return NextResponse.json(
+      { error: `Failed to sync Bybit data: ${message}` },
+      { status: 500 }
+    );
   }
 }
