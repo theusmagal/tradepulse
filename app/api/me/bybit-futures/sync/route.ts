@@ -8,7 +8,7 @@ import { fetchBybitExecutionsFromClosedPnl } from "@/lib/bybit";
 export const runtime = "nodejs";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_LOOKBACK_DAYS = 365;
+const MAX_LOOKBACK_DAYS = 90;
 const MAX_LOOKBACK_MS = MAX_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
 
 export async function POST() {
