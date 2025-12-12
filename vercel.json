@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "app/api/integrations/bybit-futures/connect/route.ts": {
+      "regions": ["fra1", "arn1", "dub1", "cdg1"]
+    },
+    "app/api/me/bybit-futures/sync/route.ts": {
+      "regions": ["fra1", "arn1", "dub1", "cdg1"]
+    }
+  }
+}
