@@ -22,16 +22,17 @@ export async function POST(req: Request) {
   const label = body.label?.trim() || "Bybit Futures";
 
   if (!apiKey || !apiSecret) {
-    return NextResponse.json(
-      { error: "Missing apiKey or apiSecret" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing apiKey or apiSecret" }, { status: 400 });
   }
 
-  const ok = await testBybitKeys(apiKey, apiSecret);
-  if (!ok) {
+  const result = await testBybitKeys(apiKey, apiSecret);
+  if (!result.ok) {
+    console.error("[bybit-futures/connect] validation failed", result);
     return NextResponse.json(
-      { error: "Failed to validate Bybit API key/secret." },
+      {
+        error: "Failed to validate Bybit API key/secret.",
+        details: result,
+      },
       { status: 400 }
     );
   }
@@ -41,10 +42,7 @@ export async function POST(req: Request) {
 
   const brokerAccount = await prisma.brokerAccount.upsert({
     where: {
-      userId_broker: {
-        userId,
-        broker: "bybit-futures",
-      },
+      userId_broker: { userId, broker: "bybit-futures" },
     },
     update: { label, apiKeyEnc, apiSecretEnc },
     create: { userId, broker: "bybit-futures", label, apiKeyEnc, apiSecretEnc },

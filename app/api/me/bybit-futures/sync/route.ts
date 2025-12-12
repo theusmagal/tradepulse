@@ -19,21 +19,17 @@ export async function POST() {
   });
 
   if (!account) {
-    return NextResponse.json(
-      { error: "No Bybit futures account connected." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No Bybit futures account connected." }, { status: 400 });
   }
 
   const apiKey = decrypt(account.apiKeyEnc);
   const apiSecret = decrypt(account.apiSecretEnc);
 
   const now = Date.now();
-
   const lastSyncTime = account.lastSyncAt?.getTime();
   const defaultFrom = now - MAX_LOOKBACK_MS;
-  let fromMs = lastSyncTime ?? defaultFrom;
 
+  let fromMs = lastSyncTime ?? defaultFrom;
   if (fromMs < defaultFrom) fromMs = defaultFrom;
   if (fromMs > now) fromMs = now - SEVEN_DAYS_MS;
 
@@ -82,9 +78,6 @@ export async function POST() {
   } catch (err) {
     console.error("[Bybit sync] error", err);
     const message = err instanceof Error ? err.message : "Unknown Bybit sync error";
-    return NextResponse.json(
-      { error: `Failed to sync Bybit data: ${message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Failed to sync Bybit data: ${message}` }, { status: 500 });
   }
 }

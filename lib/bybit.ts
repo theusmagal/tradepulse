@@ -2,7 +2,7 @@
 import crypto from "node:crypto";
 
 const BYBIT_REST_BASE =
-  process.env.BYBIT_REST_BASE_URL ?? "https://api.bybit.com";
+  (process.env.BYBIT_REST_BASE_URL?.trim() || "https://api.bybit.com").replace(/\/+$/, "");
 
 // be a bit generous to avoid 10002 errors
 const BYBIT_RECV_WINDOW = "10000"; // 10 seconds
@@ -33,69 +33,115 @@ type BybitClosedPnlResponse = {
   result?: BybitClosedPnlResult;
 };
 
+export type BybitTestResult =
+  | { ok: true }
+  | {
+      ok: false;
+      status?: number;
+      retCode?: number;
+      retMsg?: string;
+      raw?: string;
+      base?: string;
+      url?: string;
+    };
+
 function buildSignedGet(
   path: string,
   params: Record<string, string>,
   apiKey: string,
   apiSecret: string
 ) {
-  // small fudge: send timestamp slightly *behind* local time
-  // so if our clock is a bit ahead of Bybit, it's still valid
-  const timestamp = (Date.now() - 2000).toString(); // 2 seconds behind
+  // timestamp slightly behind local time to avoid "ahead of server"
+  const timestamp = (Date.now() - 2000).toString();
 
   const search = new URLSearchParams(params).toString();
   const preSign = timestamp + apiKey + BYBIT_RECV_WINDOW + search;
 
-  const sign = crypto
-    .createHmac("sha256", apiSecret)
-    .update(preSign)
-    .digest("hex");
+  const sign = crypto.createHmac("sha256", apiSecret).update(preSign).digest("hex");
 
   const url = `${BYBIT_REST_BASE}${path}?${search}`;
-  const headers = {
+
+  // NOTE: V5 often expects X-BAPI-SIGN-TYPE: "2"
+  const headers: Record<string, string> = {
     "X-BAPI-API-KEY": apiKey,
     "X-BAPI-SIGN": sign,
     "X-BAPI-TIMESTAMP": timestamp,
     "X-BAPI-RECV-WINDOW": BYBIT_RECV_WINDOW,
+    "X-BAPI-SIGN-TYPE": "2",
+    "User-Agent": "tradepulse/1.0 (+vercel)",
+    Accept: "application/json",
   };
 
   return { url, headers };
 }
 
-export async function testBybitKeys(
-  apiKey: string,
-  apiSecret: string
-): Promise<boolean> {
+export async function testBybitKeys(apiKey: string, apiSecret: string): Promise<BybitTestResult> {
+  const now = Date.now();
+  const from = now - 24 * 60 * 60 * 1000;
+
+  const { url, headers } = buildSignedGet(
+    "/v5/position/closed-pnl",
+    {
+      category: "linear",
+      startTime: String(from),
+      endTime: String(now),
+      limit: "1",
+    },
+    apiKey,
+    apiSecret
+  );
+
   try {
-    const now = Date.now();
-    const from = now - 24 * 60 * 60 * 1000;
+    const res = await fetch(url, { method: "GET", headers, cache: "no-store" });
 
-    const { url, headers } = buildSignedGet(
-      "/v5/position/closed-pnl",
-      {
-        category: "linear",
-        startTime: String(from),
-        endTime: String(now),
-        limit: "1",
-      },
-      apiKey,
-      apiSecret
-    );
-
-    const res = await fetch(url, { method: "GET", headers });
-    if (!res.ok) return false;
-
-    const json = (await res.json()) as BybitClosedPnlResponse;
-
-    if (json.retCode !== 0) {
-      console.error("Bybit test API error:", json.retCode, json.retMsg);
-      return false;
+    const raw = await res.text().catch(() => "");
+    let json: BybitClosedPnlResponse | null = null;
+    try {
+      json = raw ? (JSON.parse(raw) as BybitClosedPnlResponse) : null;
+    } catch {
+      json = null;
     }
 
-    return true;
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        retMsg: `HTTP ${res.status}`,
+        raw: raw.slice(0, 800),
+        base: BYBIT_REST_BASE,
+        url,
+      };
+    }
+
+    if (!json) {
+      return {
+        ok: false,
+        retMsg: "Non-JSON response",
+        raw: raw.slice(0, 800),
+        base: BYBIT_REST_BASE,
+        url,
+      };
+    }
+
+    if (json.retCode !== 0) {
+      return {
+        ok: false,
+        retCode: json.retCode,
+        retMsg: json.retMsg,
+        raw: raw.slice(0, 800),
+        base: BYBIT_REST_BASE,
+        url,
+      };
+    }
+
+    return { ok: true };
   } catch (err) {
-    console.error("Bybit test API exception:", err);
-    return false;
+    return {
+      ok: false,
+      retMsg: err instanceof Error ? err.message : "fetch failed",
+      base: BYBIT_REST_BASE,
+      url,
+    };
   }
 }
 
@@ -127,16 +173,12 @@ export async function fetchBybitExecutionsFromClosedPnl(
     };
     if (cursor) params.cursor = cursor;
 
-    const { url, headers } = buildSignedGet(
-      "/v5/position/closed-pnl",
-      params,
-      apiKey,
-      apiSecret
-    );
+    const { url, headers } = buildSignedGet("/v5/position/closed-pnl", params, apiKey, apiSecret);
 
-    const res = await fetch(url, { method: "GET", headers });
+    const res = await fetch(url, { method: "GET", headers, cache: "no-store" });
     if (!res.ok) {
-      throw new Error(`Bybit HTTP ${res.status}`);
+      const raw = await res.text().catch(() => "");
+      throw new Error(`Bybit HTTP ${res.status}: ${raw.slice(0, 200)}`);
     }
 
     const json = (await res.json()) as BybitClosedPnlResponse;
@@ -147,22 +189,13 @@ export async function fetchBybitExecutionsFromClosedPnl(
     const list = json.result?.list ?? [];
     for (const row of list) {
       const side: "BUY" | "SELL" = row.side === "Buy" ? "BUY" : "SELL";
-
       const qty = Number(row.closedSize || row.qty || 0);
       const price = Number(row.avgExitPrice || row.orderPrice || 0);
       const fee = Number(row.openFee || 0) + Number(row.closeFee || 0);
       const realizedPnl = Number(row.closedPnl || 0);
       const execTime = new Date(Number(row.createdTime));
 
-      executions.push({
-        symbol: row.symbol,
-        side,
-        qty,
-        price,
-        fee,
-        realizedPnl,
-        execTime,
-      });
+      executions.push({ symbol: row.symbol, side, qty, price, fee, realizedPnl, execTime });
     }
 
     cursor = json.result?.nextPageCursor || undefined;
