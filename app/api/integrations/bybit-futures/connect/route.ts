@@ -1,4 +1,3 @@
-// app/api/integrations/bybit-futures/connect/route.ts
 import { NextResponse } from "next/server";
 import { authUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -6,6 +5,7 @@ import { encrypt } from "@/lib/encryption";
 import { testBybitKeys } from "@/lib/bybit";
 
 export const runtime = "nodejs";
+export const preferredRegion = ["fra1"];
 
 type ConnectBody = {
   apiKey?: string;
@@ -28,7 +28,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // Basic validation against Bybit API
   const ok = await testBybitKeys(apiKey, apiSecret);
   if (!ok) {
     return NextResponse.json(
@@ -40,31 +39,16 @@ export async function POST(req: Request) {
   const apiKeyEnc = encrypt(apiKey);
   const apiSecretEnc = encrypt(apiSecret);
 
-  // one bybit-futures account per user
   const brokerAccount = await prisma.brokerAccount.upsert({
     where: {
-      // requires @@unique([userId, broker], name: "userId_broker") in schema
       userId_broker: {
         userId,
         broker: "bybit-futures",
       },
     },
-    update: {
-      label,
-      apiKeyEnc,
-      apiSecretEnc,
-    },
-    create: {
-      userId,
-      broker: "bybit-futures",
-      label,
-      apiKeyEnc,
-      apiSecretEnc,
-    },
+    update: { label, apiKeyEnc, apiSecretEnc },
+    create: { userId, broker: "bybit-futures", label, apiKeyEnc, apiSecretEnc },
   });
 
-  return NextResponse.json({
-    ok: true,
-    brokerAccountId: brokerAccount.id,
-  });
+  return NextResponse.json({ ok: true, brokerAccountId: brokerAccount.id });
 }
