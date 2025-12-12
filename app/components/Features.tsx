@@ -1,4 +1,3 @@
-// app/components/Features.tsx
 "use client";
 import { DownloadCloud, LineChart, CalendarDays, ShieldCheck } from "lucide-react";
 
@@ -11,7 +10,7 @@ type Feature = {
 const items: Feature[] = [
   {
     title: "Auto-import trades",
-    desc: "Connect Binance first (Bybit next). We pull executions & funding automatically.",
+    desc: "Automatically import executions and funding from major exchanges.",
     Icon: DownloadCloud,
   },
   {

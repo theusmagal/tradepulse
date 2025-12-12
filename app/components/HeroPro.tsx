@@ -48,15 +48,21 @@ export default function HeroPro() {
 
           <ul className="mt-5 grid gap-2 text-sm text-zinc-300">
             <li className="flex items-center gap-2">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">✓</span>
-              Auto-import trades (Binance first; Bybit next)
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                ✓
+              </span>
+              Auto-import trades from major exchanges
             </li>
             <li className="flex items-center gap-2">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">✓</span>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                ✓
+              </span>
               KPI dashboard & equity curve
             </li>
             <li className="flex items-center gap-2">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">✓</span>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                ✓
+              </span>
               PnL calendar with daily trade counts
             </li>
           </ul>
@@ -71,7 +77,7 @@ export default function HeroPro() {
           />
           <div className="glass p-3">
             <Image
-              src="/marketing/hero-dashboard.png"
+              src="/marketing/grafico.png"
               alt="TradePulse dashboard preview"
               width={950}
               height={614}

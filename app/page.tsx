@@ -15,17 +15,30 @@ export default function Home() {
       <TrustRow />
       <div id="features" />
       <Features />
+
       <FeatureRow
         title="PnL Calendar"
         desc="See daily wins/losses and trade counts at a glance. Spot overtrading instantly."
-        bullet={["Color-coded days", "Trade counts per day", "Click-through drilldown (soon)"]}
+        bullet={[
+          "Color-coded days",
+          "Trade counts per day",
+          "Fast visual insights by day",
+        ]}
+        imageSrc="/marketing/calendario.png"
       />
+
       <FeatureRow
         reverse
         title="Performance KPIs"
         desc="Win rate, profit factor, average R, and equity curve—calculated automatically."
-        bullet={["Custom date ranges", "Instrument grouping", "Export to CSV (soon)"]}
+        bullet={[
+          "Custom date ranges",
+          "Instrument grouping",
+          "Detailed performance metrics",
+        ]}
+        imageSrc="/marketing/grafico.png"
       />
+
       <PricingTable />
       <Testimonials />
       <FAQ />
