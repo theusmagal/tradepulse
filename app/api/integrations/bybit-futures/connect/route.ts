@@ -29,10 +29,17 @@ export async function POST(req: Request) {
   }
 
   const result = await testBybitKeys(apiKey, apiSecret);
+
   if (!result.ok) {
     console.error("[bybit-futures/connect] validation failed", result);
+
     return NextResponse.json(
-      { error: "Failed to validate Bybit API key/secret.", details: result },
+      {
+        error: "Failed to validate Bybit API key/secret.",
+        ...(process.env.NODE_ENV !== "production"
+          ? { details: result }
+          : {}),
+      },
       { status: 400 }
     );
   }
@@ -41,10 +48,28 @@ export async function POST(req: Request) {
   const apiSecretEnc = encrypt(apiSecret);
 
   const brokerAccount = await prisma.brokerAccount.upsert({
-    where: { userId_broker: { userId, broker: "bybit-futures" } },
-    update: { label, apiKeyEnc, apiSecretEnc },
-    create: { userId, broker: "bybit-futures", label, apiKeyEnc, apiSecretEnc },
+    where: {
+      userId_broker: {
+        userId,
+        broker: "bybit-futures",
+      },
+    },
+    update: {
+      label,
+      apiKeyEnc,
+      apiSecretEnc,
+    },
+    create: {
+      userId,
+      broker: "bybit-futures",
+      label,
+      apiKeyEnc,
+      apiSecretEnc,
+    },
   });
 
-  return NextResponse.json({ ok: true, brokerAccountId: brokerAccount.id });
+  return NextResponse.json({
+    ok: true,
+    brokerAccountId: brokerAccount.id,
+  });
 }
