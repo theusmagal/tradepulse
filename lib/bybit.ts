@@ -1,11 +1,7 @@
-// lib/bybit.ts
 import crypto from "node:crypto";
 
 const BYBIT_REST_BASE =
   process.env.BYBIT_REST_BASE_URL ?? "https://api.bybit.com";
-
-// be a bit generous to avoid 10002 errors
-const BYBIT_RECV_WINDOW = "10000"; // 10 seconds
 
 type BybitClosedPnlRow = {
   symbol: string;
@@ -18,7 +14,7 @@ type BybitClosedPnlRow = {
   closedPnl: string;
   openFee: string;
   closeFee: string;
-  createdTime: string; // ms since epoch as string
+  createdTime: string;
 };
 
 type BybitClosedPnlResult = {
@@ -33,30 +29,35 @@ type BybitClosedPnlResponse = {
   result?: BybitClosedPnlResult;
 };
 
+/**
+ * Build a signed GET request for Bybit v5.
+ * IMPORTANT: query params must be sorted alphabetically before signing.
+ */
 function buildSignedGet(
   path: string,
   params: Record<string, string>,
   apiKey: string,
   apiSecret: string
 ) {
-  // small fudge: send timestamp slightly *behind* local time
-  // so if our clock is a bit ahead of Bybit, it's still valid
-  const timestamp = (Date.now() - 2000).toString(); // 2 seconds behind
+  const timestamp = Date.now().toString();
+  const recvWindow = "5000";
 
-  const search = new URLSearchParams(params).toString();
-  const preSign = timestamp + apiKey + BYBIT_RECV_WINDOW + search;
+  // Sort params alphabetically by key as required by Bybit
+  const sortedEntries = Object.entries(params).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+  const search = new URLSearchParams(sortedEntries).toString();
 
-  const sign = crypto
-    .createHmac("sha256", apiSecret)
-    .update(preSign)
-    .digest("hex");
+  const preSign = timestamp + apiKey + recvWindow + search;
+
+  const sign = crypto.createHmac("sha256", apiSecret).update(preSign).digest("hex");
 
   const url = `${BYBIT_REST_BASE}${path}?${search}`;
   const headers = {
     "X-BAPI-API-KEY": apiKey,
     "X-BAPI-SIGN": sign,
     "X-BAPI-TIMESTAMP": timestamp,
-    "X-BAPI-RECV-WINDOW": BYBIT_RECV_WINDOW,
+    "X-BAPI-RECV-WINDOW": recvWindow,
   };
 
   return { url, headers };
@@ -73,20 +74,22 @@ export async function testBybitKeys(
     const { url, headers } = buildSignedGet(
       "/v5/position/closed-pnl",
       {
-        category: "linear",
-        startTime: String(from),
+        category: "linear", // USDT perp under Unified Trading
         endTime: String(now),
         limit: "1",
+        startTime: String(from),
       },
       apiKey,
       apiSecret
     );
 
     const res = await fetch(url, { method: "GET", headers });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      console.error("Bybit test HTTP error:", res.status, await res.text());
+      return false;
+    }
 
     const json = (await res.json()) as BybitClosedPnlResponse;
-
     if (json.retCode !== 0) {
       console.error("Bybit test API error:", json.retCode, json.retMsg);
       return false;
@@ -94,7 +97,7 @@ export async function testBybitKeys(
 
     return true;
   } catch (err) {
-    console.error("Bybit test API exception:", err);
+    console.error("Bybit test exception:", err);
     return false;
   }
 }
@@ -121,9 +124,9 @@ export async function fetchBybitExecutionsFromClosedPnl(
   do {
     const params: Record<string, string> = {
       category: "linear",
-      startTime: String(fromMs),
       endTime: String(toMs),
       limit: "100",
+      startTime: String(fromMs),
     };
     if (cursor) params.cursor = cursor;
 
@@ -136,11 +139,14 @@ export async function fetchBybitExecutionsFromClosedPnl(
 
     const res = await fetch(url, { method: "GET", headers });
     if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("Bybit closed-pnl HTTP error:", res.status, text);
       throw new Error(`Bybit HTTP ${res.status}`);
     }
 
     const json = (await res.json()) as BybitClosedPnlResponse;
     if (json.retCode !== 0) {
+      console.error("Bybit closed-pnl API error:", json.retCode, json.retMsg);
       throw new Error(`Bybit error ${json.retCode}: ${json.retMsg}`);
     }
 
