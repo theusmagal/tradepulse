@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
 
   const month = parseYm(ym);
 
-  const where: any = { userId: member.userId };
+  const where: Prisma.DiaryEntryWhereInput = { userId: member.userId };
 
   if (month) {
     where.entryDate = { gte: month.start, lt: month.end };
@@ -101,13 +102,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body: unknown = await req.json().catch(() => ({}));
 
-  const title =
-    typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
+  const b = (body && typeof body === "object" ? (body as Record<string, unknown>) : {}) as Record<
+    string,
+    unknown
+  >;
 
-  const content =
-    typeof body.content === "string" ? body.content.trim() : "";
+  const title = typeof b.title === "string" ? b.title.trim().slice(0, 120) : "";
+  const content = typeof b.content === "string" ? b.content.trim() : "";
 
   if (!content) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
@@ -117,8 +120,8 @@ export async function POST(req: Request) {
   }
 
   let entryDate = new Date();
-  if (typeof body.entryDate === "string" && body.entryDate.trim()) {
-    const d = new Date(body.entryDate);
+  if (typeof b.entryDate === "string" && b.entryDate.trim()) {
+    const d = new Date(b.entryDate);
     if (!Number.isNaN(d.getTime())) entryDate = d;
   }
 
