@@ -1,22 +1,27 @@
 // app/components/FAQ.tsx
 "use client";
 
+import Container from "./Container";
 import { useState } from "react";
 
 type QA = { q: string; a: string };
 
 const faqs: QA[] = [
   {
-    q: "Do I need to enter trades manually?",
-    a: "No. We auto-import executions and funding from your connected exchange (Binance first, Bybit next). You can still edit notes/tags whenever you want.",
+    q: "How does trade import work?",
+    a: "Bybit connects via secure read-only API for automatic syncing. Binance trades are imported instantly using a CSV upload. Both end up in the same analytics dashboard.",
   },
   {
-    q: "Is my data safe?",
-    a: "API keys are stored encrypted at rest. We request read-only permissions and never withdraw funds. You can revoke access any time from your exchange.",
+    q: "Do I need to enter trades manually?",
+    a: "No. Import your trades (API or CSV) and your KPIs, calendar, and equity curve are calculated automatically.",
+  },
+  {
+    q: "What is the Journal for?",
+    a: "It’s for daily notes: your plan, your emotions, and lessons learned. Over time you’ll see patterns that improve discipline and execution.",
   },
   {
     q: "Can I cancel?",
-    a: "Absolutely. It’s month-to-month (or yearly with discount). Cancel anytime from your account page—no hoops.",
+    a: "Absolutely. Cancel anytime from your account page—no hoops.",
   },
 ];
 
@@ -24,8 +29,8 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section className="py-14">
-      <div className="mx-auto max-w-3xl px-6">
+    <section className="py-12 md:py-16">
+      <Container className="max-w-3xl">
         <h2 className="text-center text-2xl md:text-3xl font-semibold text-zinc-100">
           FAQ
         </h2>
@@ -36,10 +41,9 @@ export default function FAQ() {
             return (
               <div
                 key={item.q}
-                className={[
-                  "glass overflow-hidden",
-                  active ? "ring-1 ring-emerald-400/25" : "",
-                ].join(" ")}
+                className={["glass overflow-hidden", active ? "ring-1 ring-emerald-400/25" : ""].join(
+                  " "
+                )}
               >
                 <button
                   type="button"
@@ -62,7 +66,6 @@ export default function FAQ() {
                   </svg>
                 </button>
 
-                {/* answer */}
                 {active && (
                   <div className="border-t border-zinc-700/60 px-4 py-3 text-sm text-zinc-300">
                     {item.a}
@@ -72,7 +75,7 @@ export default function FAQ() {
             );
           })}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

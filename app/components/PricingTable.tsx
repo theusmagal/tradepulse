@@ -1,8 +1,14 @@
 // app/components/PricingTable.tsx
-export default function PricingTable({ highlightAnnual = true }: { highlightAnnual?: boolean }) {
+import Container from "./Container";
+
+export default function PricingTable({
+  highlightAnnual = true,
+}: {
+  highlightAnnual?: boolean;
+}) {
   return (
     <section className="py-12 md:py-16 bg-transparent">
-      <div className="mx-auto max-w-5xl px-6">
+      <Container>
         <h2 className="text-center text-2xl md:text-3xl font-semibold text-zinc-100">
           Simple pricing
         </h2>
@@ -27,12 +33,11 @@ export default function PricingTable({ highlightAnnual = true }: { highlightAnnu
             <p className="mt-1 text-xs text-emerald-300">Best value — 2 months free</p>
 
             <ul className="mt-4 list-inside list-disc space-y-2 text-sm text-zinc-200">
-              <li>All analytics & calendar</li>
-              <li>1 connected exchange (Binance)</li>
+              <li>All analytics, calendar & journal</li>
+              <li>Bybit API + Binance CSV import</li>
               <li>Priority support</li>
             </ul>
 
-            {/* Use the unified auto-checkout flow */}
             <a
               href="/auth/auto-checkout?plan=annual"
               className="mt-6 inline-block w-full rounded-md px-5 py-3 text-center font-medium
@@ -45,15 +50,15 @@ export default function PricingTable({ highlightAnnual = true }: { highlightAnnu
           </div>
 
           {/* Monthly */}
-          <div className="glass p-6 opacity-85 transition hover:opacity-100">
+          <div className="glass p-6 opacity-90 transition hover:opacity-100">
             <h3 className="font-semibold text-zinc-100">Monthly</h3>
             <p className="mt-1 text-3xl font-bold text-zinc-100">
               €20 <span className="text-sm text-zinc-400">/ month</span>
             </p>
 
             <ul className="mt-4 list-inside list-disc space-y-2 text-sm text-zinc-200">
-              <li>All analytics & calendar</li>
-              <li>1 connected exchange (Binance)</li>
+              <li>All analytics, calendar & journal</li>
+              <li>Bybit API + Binance CSV import</li>
               <li>Cancel anytime</li>
             </ul>
 
@@ -71,7 +76,7 @@ export default function PricingTable({ highlightAnnual = true }: { highlightAnnu
         <p className="mt-4 text-center text-xs text-zinc-400">
           VAT handled by Stripe • 14-day free trial • Cancel anytime
         </p>
-      </div>
+      </Container>
     </section>
   );
 }

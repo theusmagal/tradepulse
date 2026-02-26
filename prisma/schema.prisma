@@ -8,7 +8,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/* ---------- Enums ---------- */
+/**
+ * ---------- Enums ----------
+ */
 
 enum Plan {
   PRO_MONTHLY
@@ -25,49 +27,52 @@ enum ApiKeyStatus {
   revoked
 }
 
-/* models */
+/**
+ * models
+ */
 
 model User {
-  id                 String   @id @default(cuid())
-  email              String   @unique
-  password           String
+  id       String @id @default(cuid())
+  email    String @unique
+  password String
 
   // Profile
-  name               String?
-  timezone           String   @default("UTC")
-  startingBalance    Decimal  @db.Decimal(18, 2) @default(10000)
+  name            String?
+  timezone        String  @default("UTC")
+  startingBalance Decimal @default(10000) @db.Decimal(18, 2)
 
   // billing and Subscription
-  stripeCustomerId   String?  @unique
-  stripeSubId        String?  @unique
-  subscriptionStatus String?  // active | trialing | past_due | canceled | unpaid | incomplete
+  stripeCustomerId   String?   @unique
+  stripeSubId        String?   @unique
+  subscriptionStatus String? // active | trialing | past_due | canceled | unpaid | incomplete
   plan               Plan?
   trialEndsAt        DateTime?
 
   // Timestamps
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // relations
-  subscriptions      BillingSubscription[]
-  brokerAccounts     BrokerAccount[]
-  apiKeys            ApiKey[]
+  subscriptions  BillingSubscription[]
+  brokerAccounts BrokerAccount[]
+  apiKeys        ApiKey[]
+  diaryEntries   DiaryEntry[] // ✅ NEW
 
   @@index([createdAt])
 }
 
 model BillingSubscription {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   userId               String
   stripeCustomerId     String
-  stripeSubscriptionId String   @unique
+  stripeSubscriptionId String    @unique
   status               String
   currentPeriodEnd     DateTime?
   trialEnd             DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([stripeCustomerId])
@@ -75,113 +80,127 @@ model BillingSubscription {
 }
 
 model BrokerAccount {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  broker       String   // e.g. "binance-futures", "binance-spot" later, "bybit-futures", etc.
+  broker       String // e.g. "binance-futures", "binance-spot" later, "bybit-futures", etc.
   label        String?
-  apiKeyEnc    String   // encrypted API key
-  apiSecretEnc String   // encrypted API secret
+  apiKeyEnc    String // encrypted API key
+  apiSecretEnc String // encrypted API secret
   lastSyncAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   executions   Execution[]
   trades       Trade[]
   dailyMetrics DailyMetric[]
 
-  @@index([userId])
-  @@index([userId, broker])
-
   // ensure only one account per (user, broker) and enable upsert where: { userId_broker: { ... } }
   @@unique([userId, broker], name: "userId_broker")
+  @@index([userId])
+  @@index([userId, broker])
 }
 
 model Execution {
-  id              String        @id @default(cuid())
+  id              String  @id @default(cuid())
   brokerAccountId String
   symbol          String
   side            Side
-  qty             Decimal       @db.Decimal(18, 6)
-  price           Decimal       @db.Decimal(18, 6)
-  fee             Decimal       @db.Decimal(18, 6)
+  qty             Decimal @db.Decimal(18, 6)
+  price           Decimal @db.Decimal(18, 6)
+  fee             Decimal @db.Decimal(18, 6)
 
   // Realized PnL per execution (from CSV / API)
-  realizedPnl     Decimal?      @db.Decimal(18, 6)
+  realizedPnl Decimal? @db.Decimal(18, 6)
 
-  execTime        DateTime
-  tradeId         String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  execTime  DateTime
+  tradeId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
-
-  @@index([brokerAccountId, execTime])
-  @@index([brokerAccountId, symbol, execTime])
+  brokerAccount BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
   // prevents importing the same execution twice
   @@unique([brokerAccountId, symbol, side, qty, price, execTime, fee, realizedPnl])
+  @@index([brokerAccountId, execTime])
+  @@index([brokerAccountId, symbol, execTime])
 }
 
 model Trade {
-  id              String        @id @default(cuid())
+  id              String   @id @default(cuid())
   brokerAccountId String
   symbol          String
   side            Side
   openTime        DateTime
   closeTime       DateTime
-  qty             Decimal       @db.Decimal(18, 6)
-  avgEntry        Decimal       @db.Decimal(18, 6)
-  avgExit         Decimal       @db.Decimal(18, 6)
-  grossPnl        Decimal       @db.Decimal(18, 2)
-  netPnl          Decimal       @db.Decimal(18, 2)
-  fees            Decimal       @db.Decimal(18, 2)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  qty             Decimal  @db.Decimal(18, 6)
+  avgEntry        Decimal  @db.Decimal(18, 6)
+  avgExit         Decimal  @db.Decimal(18, 6)
+  grossPnl        Decimal  @db.Decimal(18, 2)
+  netPnl          Decimal  @db.Decimal(18, 2)
+  fees            Decimal  @db.Decimal(18, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
-
-  @@index([brokerAccountId, closeTime])
-  @@index([symbol])
+  brokerAccount BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
   // lets us safely use createMany(..., skipDuplicates: true)
   @@unique([brokerAccountId, symbol, side, closeTime, qty, netPnl])
+  @@index([brokerAccountId, closeTime])
+  @@index([symbol])
 }
 
 model DailyMetric {
-  id              String        @id @default(cuid())
+  id              String   @id @default(cuid())
   brokerAccountId String
   date            DateTime
   trades          Int
   wins            Int
   losses          Int
-  winRate         Decimal       @db.Decimal(6, 4)
-  profitFactor    Decimal       @db.Decimal(10, 4)
-  netPnl          Decimal       @db.Decimal(18, 2)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  winRate         Decimal  @db.Decimal(6, 4)
+  profitFactor    Decimal  @db.Decimal(10, 4)
+  netPnl          Decimal  @db.Decimal(18, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
+  brokerAccount BrokerAccount @relation(fields: [brokerAccountId], references: [id], onDelete: Cascade)
 
   @@unique([brokerAccountId, date])
   @@index([brokerAccountId, date])
 }
 
 model ApiKey {
-  id        String        @id @default(cuid())
+  id        String  @id @default(cuid())
   userId    String
-  provider  String        // e.g. "binance-futures" later if you need app-wide keys
+  provider  String // e.g. "binance-futures" later if you need app-wide keys
   label     String?
   keyLast4  String
   encApiKey String
   encSecret String
 
-  status    ApiKeyStatus  @default(active)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @default(now())
+  status    ApiKeyStatus @default(active)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now())
 
-  User      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, provider])
   @@index([userId, provider, status])
+}
+
+/**
+ * ✅ NEW MODEL
+ */
+model DiaryEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  content   String
+  entryDate DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entryDate])
 }

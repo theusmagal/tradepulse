@@ -1,8 +1,8 @@
 export default function TrustRow() {
   const items = [
     { k: "2 min", v: "Setup • no spreadsheets" },
-    { k: "Encrypted", v: "API keys at rest" },
-    { k: "Global", v: "Secure & compliant" },
+    { k: "Bybit + Binance", v: "API sync + CSV upload" },
+    { k: "Encrypted", v: "Security-first by default" },
   ];
 
   return (

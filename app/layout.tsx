@@ -27,9 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <Providers>
           <Header />
-          <main className="relative mx-auto max-w-6xl px-6 py-8">
-            {children}
-          </main>
+          {/* ✅ IMPORTANT: do NOT constrain ALL pages. Let pages/sections control layout. */}
+          <main className="relative">{children}</main>
         </Providers>
       </body>
     </html>

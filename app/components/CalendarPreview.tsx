@@ -2,9 +2,10 @@
 
 type Day = { day: number; pnl: number; trades: number };
 
-const GREEN_BG = "rgba(34,197,94,0.32)";
-const RED_BG = "rgba(249, 3, 3, 0.28)";
-const NEUTRAL_BG = "rgba(24,24,27,0.9)"; // subtle dark grey
+const ENTRY_BG = "rgb(134, 136, 5)"; // journal highlight
+const GREEN_BG = "rgba(34,197,94,0.32)"; // pnl win
+const RED_BG = "rgba(249, 3, 3, 0.28)"; // pnl loss
+const NEUTRAL_BG = "rgba(24,24,27,0.9)";
 
 export default function CalendarPreview({
   days,
@@ -14,6 +15,11 @@ export default function CalendarPreview({
   onPrevMonth,
   onNextMonth,
   className = "",
+
+  // optional
+  mode = "pnl",
+  selectedDay,
+  onSelectDay,
 }: {
   days: Day[];
   title?: string;
@@ -22,6 +28,10 @@ export default function CalendarPreview({
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
   className?: string;
+
+  mode?: "pnl" | "count";
+  selectedDay?: number;
+  onSelectDay?: (day: number) => void;
 }) {
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -29,6 +39,36 @@ export default function CalendarPreview({
   const first = new Date(Date.UTC(year, month, 1));
   const weekdayIdx = (first.getUTCDay() + 6) % 7;
   const blanks = Array.from({ length: weekdayIdx }, (_, i) => i);
+
+  const legend =
+    mode === "pnl" ? (
+      <div className="flex items-center gap-3 text-zinc-400">
+        <span className="inline-flex items-center gap-1">
+          <i
+            className="h-3 w-3 rounded-sm inline-block"
+            style={{ backgroundColor: GREEN_BG }}
+          />
+          Win
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <i
+            className="h-3 w-3 rounded-sm inline-block"
+            style={{ backgroundColor: RED_BG }}
+          />
+          Loss
+        </span>
+      </div>
+    ) : (
+      <div className="flex items-center gap-3 text-zinc-400">
+        <span className="inline-flex items-center gap-1">
+          <i
+            className="h-3 w-3 rounded-sm inline-block"
+            style={{ backgroundColor: ENTRY_BG }}
+          />
+          Entry
+        </span>
+      </div>
+    );
 
   return (
     <div className={`glass p-4 space-y-3 h-full ${className}`}>
@@ -61,22 +101,7 @@ export default function CalendarPreview({
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-zinc-400">
-          <span className="inline-flex items-center gap-1">
-            <i
-              className="h-3 w-3 rounded-sm inline-block"
-              style={{ backgroundColor: GREEN_BG }}
-            />
-            Win
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <i
-              className="h-3 w-3 rounded-sm inline-block"
-              style={{ backgroundColor: RED_BG }}
-            />
-            Loss
-          </span>
-        </div>
+        {legend}
       </div>
 
       {/* body */}
@@ -99,27 +124,61 @@ export default function CalendarPreview({
           const isLoss = d.pnl < 0;
 
           let bg = NEUTRAL_BG;
-          if (hasTrades && isWin) bg = GREEN_BG;
-          if (hasTrades && isLoss) bg = RED_BG;
+
+          if (mode === "pnl") {
+            if (hasTrades && isWin) bg = GREEN_BG;
+            if (hasTrades && isLoss) bg = RED_BG;
+          } else {
+            // mode === "count": highlight any day with entries
+            if (hasTrades) bg = ENTRY_BG;
+          }
+
+          const active = selectedDay === d.day;
 
           return (
             <div
               key={d.day}
-              className="rounded-md border border-white/10 p-2 flex flex-col justify-between h-20"
+              className={[
+                "rounded-md border p-2 flex flex-col justify-between h-20 transition",
+                active
+                  ? "border-emerald-300/70 ring-2 ring-emerald-400/30"
+                  : "border-white/10",
+                onSelectDay ? "cursor-pointer hover:brightness-110" : "",
+              ].join(" ")}
               style={{ backgroundColor: bg }}
+              onClick={() => onSelectDay?.(d.day)}
+              role={onSelectDay ? "button" : undefined}
+              aria-label={onSelectDay ? `Select day ${d.day}` : undefined}
+              tabIndex={onSelectDay ? 0 : undefined}
+              onKeyDown={(e) => {
+                if (!onSelectDay) return;
+                if (e.key === "Enter" || e.key === " ") onSelectDay(d.day);
+              }}
             >
+              {/* day number */}
               <div className="text-zinc-200">{d.day}</div>
 
-              {/* keep same vertical space by always rendering 2 more lines */}
+              {/* middle line:
+                  - pnl mode: show pnl
+                  - count mode: KEEP SPACE but do NOT show the count number (avoid "duplicate")
+               */}
               <div
                 className={
-                  hasTrades
-                    ? "font-semibold text-white"
+                  mode === "pnl"
+                    ? hasTrades
+                      ? "font-semibold text-white"
+                      : "font-semibold text-transparent"
                     : "font-semibold text-transparent"
                 }
               >
-                {hasTrades ? `${d.pnl > 0 ? "+" : ""}${d.pnl.toFixed(2)}` : "0.00"}
+                {mode === "pnl"
+                  ? hasTrades
+                    ? `${d.pnl > 0 ? "+" : ""}${d.pnl.toFixed(2)}`
+                    : "0.00"
+                  : "—"}
               </div>
+
+              {/* bottom line */}
               <div
                 className={
                   hasTrades
@@ -128,8 +187,12 @@ export default function CalendarPreview({
                 }
               >
                 {hasTrades
-                  ? `${d.trades} ${d.trades === 1 ? "trade" : "trades"}`
-                  : "0 trades"}
+                  ? mode === "pnl"
+                    ? `${d.trades} ${d.trades === 1 ? "trade" : "trades"}`
+                    : `${d.trades} ${d.trades === 1 ? "entry" : "entries"}`
+                  : mode === "pnl"
+                  ? "0 trades"
+                  : "0 entries"}
               </div>
             </div>
           );

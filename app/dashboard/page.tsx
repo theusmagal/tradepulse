@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 
 type RangeKey = "7d" | "30d" | "ytd" | "all";
 
-// This type matches what /api/me/summary returns
 type Summary = {
   kpis: {
     netPnl: number;
@@ -28,13 +27,7 @@ type Summary = {
 };
 
 const EMPTY_SUMMARY: Summary = {
-  kpis: {
-    netPnl: 0,
-    winRate: 0,
-    profitFactor: 0,
-    avgR: 0,
-    tradeCount: 0,
-  },
+  kpis: { netPnl: 0, winRate: 0, profitFactor: 0, avgR: 0, tradeCount: 0 },
   equity: [{ x: Date.now(), y: 10_000 }],
   calendar: [],
   trades: [],
@@ -47,17 +40,12 @@ export const metadata: Metadata = {
 export default async function DashboardPage({
   searchParams,
 }: {
-  // In Next 15 app router, searchParams is a Promise in server components
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // Block access unless user is an active member (or trial)
   await requireMember();
 
   const sp = (await searchParams) ?? {};
   const initialRange: RangeKey = (sp.range as RangeKey) ?? "30d";
-
-  // ⚠️ No server-side fetch of /api/me/summary here.
-  // DashboardClient will fetch the real data from the browser with cookies.
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
