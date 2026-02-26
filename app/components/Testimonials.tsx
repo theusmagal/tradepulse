@@ -1,3 +1,5 @@
+// app/components/Testimonials.tsx
+import Container from "./Container";
 import { Star } from "lucide-react";
 
 const quotes = [
@@ -23,13 +25,17 @@ const quotes = [
 
 function Stars({ rating }: { rating: number }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1" aria-label={`${rating} out of 5 stars`}>
       {Array.from({ length: 5 }).map((_, i) => {
         const filled = i < rating;
         return (
           <Star
             key={i}
-            className={filled ? "h-4 w-4 fill-yellow-400 text-yellow-400" : "h-4 w-4 text-yellow-500/40"}
+            className={
+              filled
+                ? "h-4 w-4 fill-yellow-400 text-yellow-400"
+                : "h-4 w-4 text-yellow-500/40"
+            }
             strokeWidth={1.5}
             aria-hidden
           />
@@ -42,10 +48,13 @@ function Stars({ rating }: { rating: number }) {
 export default function Testimonials() {
   return (
     <section className="py-12 md:py-16">
-      <div className="mx-auto max-w-5xl px-6">
+      <Container>
         <h2 className="text-center text-2xl md:text-3xl font-semibold text-zinc-100">
           What traders say
         </h2>
+        <p className="mt-2 text-center text-zinc-400">
+          Built to make performance visible and improvement repeatable.
+        </p>
 
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {quotes.map((q) => (
@@ -54,16 +63,14 @@ export default function Testimonials() {
               className="glass p-5 transition hover:ring-1 hover:ring-emerald-400/25 hover:shadow-[0_0_22px_rgba(16,185,129,.14)]"
             >
               <Stars rating={q.rating} />
-              <blockquote className="mt-3 text-zinc-200">
-                &ldquo;{q.text}&rdquo;
-              </blockquote>
+              <blockquote className="mt-3 text-zinc-200">&ldquo;{q.text}&rdquo;</blockquote>
               <figcaption className="mt-4 text-sm text-zinc-400">
                 {q.name} &bull; {q.role}
               </figcaption>
             </figure>
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

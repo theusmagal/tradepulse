@@ -13,30 +13,42 @@ export default function Home() {
     <div className="bg-transparent text-inherit">
       <HeroPro />
       <TrustRow />
+
       <div id="features" />
       <Features />
 
       <FeatureRow
         title="PnL Calendar"
-        desc="See daily wins/losses and trade counts at a glance. Spot overtrading instantly."
+        desc="See your month in seconds: daily PnL and trade count in one simple view. Spot overtrading and streaks instantly."
         bullet={[
           "Color-coded days",
-          "Trade counts per day",
-          "Fast visual insights by day",
+          "Trade count per day",
+          "Fast patterns and discipline checks",
         ]}
         imageSrc="/marketing/calendario.png"
       />
 
       <FeatureRow
         reverse
+        title="Journal (Daily Notes)"
+        desc="Write quick notes per day: what you saw, what you felt, and what you’ll do next time. Build consistency with proof."
+        bullet={[
+          "Entries by date",
+          "Search past notes instantly",
+          "Turn emotions into rules",
+        ]}
+        imageSrc="/marketing/journal.png"
+      />
+
+      <FeatureRow
         title="Performance KPIs"
-        desc="Win rate, profit factor, average R, and equity curve—calculated automatically."
+        desc="Win rate, profit factor, average R, and equity curve—calculated automatically from your imported trades."
         bullet={[
           "Custom date ranges",
           "Instrument grouping",
-          "Detailed performance metrics",
+          "Clean KPI dashboard",
         ]}
-        imageSrc="/marketing/grafico.png"
+        imageSrc="/marketing/KPI.png"
       />
 
       <PricingTable />

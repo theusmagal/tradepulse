@@ -1,5 +1,5 @@
 "use client";
-import { DownloadCloud, LineChart, CalendarDays, ShieldCheck } from "lucide-react";
+import { DownloadCloud, LineChart, CalendarDays, NotebookPen } from "lucide-react";
 
 type Feature = {
   title: string;
@@ -9,24 +9,24 @@ type Feature = {
 
 const items: Feature[] = [
   {
-    title: "Auto-import trades",
-    desc: "Automatically import executions and funding from major exchanges.",
+    title: "Import trades fast",
+    desc: "Bybit syncs via read-only API. Binance imports instantly via CSV upload.",
     Icon: DownloadCloud,
   },
   {
     title: "Performance KPIs",
-    desc: "Win rate, profit factor, equity curve, avg win/loss, and more.",
+    desc: "Win rate, profit factor, average R, equity curve, and more—computed automatically.",
     Icon: LineChart,
   },
   {
     title: "PnL Calendar",
-    desc: "Daily wins/losses and trade counts in a simple month view.",
+    desc: "Daily results and trade counts in a clean month view. Patterns jump out instantly.",
     Icon: CalendarDays,
   },
   {
-    title: "Security-first",
-    desc: "Encrypted API keys at rest and privacy by default.",
-    Icon: ShieldCheck,
+    title: "Journal notes",
+    desc: "Log what happened and why. Search entries by date to build discipline over time.",
+    Icon: NotebookPen,
   },
 ];
 
@@ -42,7 +42,6 @@ export default function Features() {
           {items.map(({ title, desc, Icon }) => (
             <div key={title} className="glass p-5">
               <div className="flex items-start gap-3">
-                {/* icon badge */}
                 <span
                   className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl
                              border border-zinc-700/50 bg-zinc-900/60"
