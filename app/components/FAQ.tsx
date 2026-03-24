@@ -1,4 +1,4 @@
-// app/components/FAQ.tsx
+
 "use client";
 
 import Container from "./Container";

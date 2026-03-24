@@ -119,7 +119,7 @@ export default function ProfileSettingsPage() {
             />
           </div>
 
-          {/* Email (read-only) */}
+          {/* Email  */}
           <div>
             <label className="block text-sm text-zinc-300 mb-1">Email</label>
             <input

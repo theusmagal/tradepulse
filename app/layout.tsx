@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <Providers>
           <Header />
-          {/* ✅ IMPORTANT: do NOT constrain ALL pages. Let pages/sections control layout. */}
+          {/*  */}
           <main className="relative">{children}</main>
         </Providers>
       </body>

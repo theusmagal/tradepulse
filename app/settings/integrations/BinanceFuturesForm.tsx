@@ -1,4 +1,4 @@
-// app/settings/integrations/BinanceFuturesForm.tsx
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -46,7 +46,7 @@ export function AddBinanceForm() {
       } else {
         const imported = data?.imported ?? 0;
         setStatus(`Imported ${imported} trades successfully.`);
-        setFile(null); // this is enough, the label will show "No file selected"
+        setFile(null);
       }
     } catch {
       setStatus("Network error while uploading CSV.");
@@ -57,7 +57,7 @@ export function AddBinanceForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 text-sm">
-      {/* Step 1: choose file */}
+      
       <div className="space-y-2">
         <p className="text-xs text-zinc-400 font-semibold">
           Step 1 – Choose your Binance Futures CSV file
@@ -88,7 +88,7 @@ export function AddBinanceForm() {
         </div>
       </div>
 
-      {/* Step 2: import */}
+      
       <div className="space-y-2">
         <p className="text-xs text-zinc-400 font-semibold">
           Step 2 – Import into TradePulse

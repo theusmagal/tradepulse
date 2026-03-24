@@ -1,4 +1,4 @@
-// components/TradesTable.tsx
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -12,7 +12,7 @@ type Trade = {
   qty: string;
   price: string;
   pnl: number;
-  time: string; // ISO
+  time: string; 
 };
 
 type ColKey = "time" | "symbol" | "side" | "qty" | "price" | "pnl";

@@ -29,7 +29,6 @@ export default function SparklineInteractive({
   showTooltip = true,
   timeZone,
 }: Props) {
-  // Hooks must be called unconditionally
   const [hi, setHi] = useState<number | null>(null);
 
   const series = useMemo(() => {
@@ -37,14 +36,13 @@ export default function SparklineInteractive({
     const s = [...data]
       .filter((d) => Number.isFinite(d.x) && Number.isFinite(d.y))
       .sort((a, b) => a.x - b.x);
-    // de-duplicate by x
+    
     return s.filter((d, i) => (i === 0 ? true : d.x !== s[i - 1].x));
   }, [data]);
 
   const hasData = series.length > 0;
   if (!hasData) return null;
 
-  // ---- scales & geometry
   const xs = series.map((d) => d.x);
   const ys = series.map((d) => d.y);
   const minX = Math.min(...xs);
@@ -75,7 +73,6 @@ export default function SparklineInteractive({
     .join(" ");
   const xsScaled = series.map((p) => sx(p.x));
 
-  // ---- formatters
   const tz = timeZone || "UTC";
   const fmtDate = (ts: number) =>
     new Intl.DateTimeFormat("en-US", {
@@ -115,7 +112,6 @@ export default function SparklineInteractive({
     return `${sign}$${rounded}${suffix}`;
   };
 
-  // ---- ticks
   const niceStep = (range: number, approx: number) => {
     const raw = range / Math.max(1, approx);
     const pow10 = Math.pow(
@@ -151,7 +147,6 @@ export default function SparklineInteractive({
         )
     : [];
 
-  // ---- helpers
   const textColor = "rgba(255,255,255,0.7)";
   const gridColor = "rgba(255,255,255,0.08)";
   const CORNER_GAP = 34;

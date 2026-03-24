@@ -1,4 +1,4 @@
-// app/components/Footer.tsx
+
 import Container from "./Container";
 
 export default function Footer() {

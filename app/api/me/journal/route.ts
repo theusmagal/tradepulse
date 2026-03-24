@@ -1,4 +1,4 @@
-// app/api/me/journal/route.ts
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -37,7 +37,6 @@ function parseYm(ym?: string | null): { start: Date; end: Date } | null {
   const m = Number(mStr);
   if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
 
-  // UTC month boundaries (consistent with your dashboard calendar)
   const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
   const end = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
   return { start, end };

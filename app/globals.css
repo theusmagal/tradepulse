@@ -38,7 +38,7 @@ body::after {
 @layer components {
   .panel {
     @apply rounded-xl border border-zinc-500/45 bg-zinc-900/50;
-    /* soft lift + crisp inner outline for definition */
+    
     box-shadow:
       0 8px 24px rgba(0,0,0,.22),
       0 0 0 1px rgba(255,255,255,.045) inset,

@@ -1,4 +1,4 @@
-// app/components/PricingTable.tsx
+
 import Container from "./Container";
 
 export default function PricingTable({
@@ -17,7 +17,7 @@ export default function PricingTable({
         </p>
 
         <div className="mt-8 grid gap-6 md:grid-cols-2">
-          {/* Yearly (highlight) */}
+          {/* Yearly  */}
           <div
             className={[
               "glass p-6",

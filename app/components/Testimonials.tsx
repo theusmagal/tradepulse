@@ -1,4 +1,4 @@
-// app/components/Testimonials.tsx
+
 import Container from "./Container";
 import { Star } from "lucide-react";
 

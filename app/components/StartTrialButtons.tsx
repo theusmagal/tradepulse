@@ -1,4 +1,4 @@
-// app/components/StartTrialButtons.tsx
+
 'use client';
 
 import Link from "next/link";
@@ -19,7 +19,7 @@ export default function StartTrialButtons() {
       const { url } = await res.json();
       window.location.href = url;
     } catch {
-      // Fallback just in case — send to pricing
+      
       window.location.href = "/pricing?error=checkout";
     }
   }

@@ -16,7 +16,6 @@ export default function CalendarPreview({
   onNextMonth,
   className = "",
 
-  // optional
   mode = "pnl",
   selectedDay,
   onSelectDay,
@@ -35,7 +34,6 @@ export default function CalendarPreview({
 }) {
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  // First day offset (Mon=0..Sun=6)
   const first = new Date(Date.UTC(year, month, 1));
   const weekdayIdx = (first.getUTCDay() + 6) % 7;
   const blanks = Array.from({ length: weekdayIdx }, (_, i) => i);
@@ -129,7 +127,6 @@ export default function CalendarPreview({
             if (hasTrades && isWin) bg = GREEN_BG;
             if (hasTrades && isLoss) bg = RED_BG;
           } else {
-            // mode === "count": highlight any day with entries
             if (hasTrades) bg = ENTRY_BG;
           }
 
@@ -158,10 +155,6 @@ export default function CalendarPreview({
               {/* day number */}
               <div className="text-zinc-200">{d.day}</div>
 
-              {/* middle line:
-                  - pnl mode: show pnl
-                  - count mode: KEEP SPACE but do NOT show the count number (avoid "duplicate")
-               */}
               <div
                 className={
                   mode === "pnl"
