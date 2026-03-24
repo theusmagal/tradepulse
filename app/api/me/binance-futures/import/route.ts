@@ -1,4 +1,4 @@
-// app/api/me/binance-futures/import/route.ts
+
 import { NextResponse } from "next/server";
 import { parse } from "csv-parse/sync";
 import { authUserId } from "@/lib/auth";
@@ -25,7 +25,6 @@ function parseNumber(v: string | undefined): number {
 function parseDate(v: string | undefined): Date {
   if (!v) return new Date();
   const trimmed = v.trim();
-  // Try to normalize "YYYY-MM-DD HH:MM:SS" -> ISO
   const isoLike = trimmed.includes("T")
     ? trimmed
     : trimmed.replace(" ", "T");
@@ -56,7 +55,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Find or create a broker account for Binance Futures CSV
     let brokerAccount = await prisma.brokerAccount.findFirst({
       where: { userId, broker: "binance-futures" },
     });
@@ -116,7 +114,6 @@ export async function POST(req: Request) {
           ? "BUY"
           : "SELL";
 
-      // Quantity
       const qty = parseNumber(
         getAny(row, [
           "Size",
@@ -129,7 +126,6 @@ export async function POST(req: Request) {
         ])
       );
 
-      // Prices
       const entryPrice = parseNumber(
         getAny(row, [
           "Entry Price",
@@ -148,7 +144,6 @@ export async function POST(req: Request) {
         ])
       );
 
-      // Times
       const openTime = parseDate(
         getAny(row, [
           "Open Time",
@@ -167,7 +162,6 @@ export async function POST(req: Request) {
         ])
       );
 
-      // PnL & fees
       const realized = parseNumber(
         getAny(row, [
           "Realized PnL",
@@ -207,7 +201,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Insert trades (skip duplicates based on @@unique in Prisma)
     await prisma.trade.createMany({
       data: tradesData,
       skipDuplicates: true,

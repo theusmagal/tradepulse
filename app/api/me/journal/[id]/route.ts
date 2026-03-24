@@ -1,4 +1,4 @@
-// app/api/me/journal/[id]/route.ts
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -88,7 +88,6 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     if (!Number.isNaN(d.getTime())) entryDate = d;
   }
 
-  // Ensure it belongs to the user first
   const existing = await prisma.diaryEntry.findFirst({
     where: { id, userId: member.userId },
     select: { id: true },

@@ -1,4 +1,4 @@
-// app/api/integrations/binance-futures/test/route.ts
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authUserId } from "@/lib/auth";
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Call Binance Futures via our helper
+  // Call Binance Futures 
   const result = await verifyBinanceKey(apiKey, secret);
 
   if (result.ok) {

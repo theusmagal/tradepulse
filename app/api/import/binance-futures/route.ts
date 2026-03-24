@@ -1,4 +1,4 @@
-// app/api/import/binance-futures/route.ts
+
 import { NextResponse } from "next/server";
 import { parse } from "csv-parse/sync";
 import { authUserId } from "@/lib/auth";
@@ -18,7 +18,7 @@ type ExecutionInput = {
   price: number;
   fee: number;
   execTime: Date;
-  realizedPnl: number; // 👈 NEW
+  realizedPnl: number; 
 };
 
 export async function POST(req: Request) {
@@ -86,7 +86,6 @@ export async function POST(req: Request) {
       const priceRaw = row["Price"] || row["Avg Price"] || row["price"];
       const feeRaw = row["Fee"] || row["Commission"] || row["fee"];
 
-      // 👇 from your screenshot, the column is "Realized Profit"
       const realizedRaw =
         row["Realized Profit"] ||
         row["Realized PnL"] ||

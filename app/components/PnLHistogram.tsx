@@ -22,7 +22,6 @@ export default function PnLHistogram({
   width = 1100,
   timeZone,
 }: Props) {
-  // ✅ Hooks must come before any conditional return
   const [hi, setHi] = useState<number | null>(null);
   const hasTrades = trades && trades.length > 0;
   if (!hasTrades) return null;
@@ -37,7 +36,7 @@ export default function PnLHistogram({
   const y0 = H - P - AY, y1 = P + 10;
   const plotW = x1 - x0, plotH = y0 - y1;
 
-  // ----- helpers (use passed timeZone when formatting)
+
   const tz = timeZone || "UTC";
   const utc = (y: number, m: number, d = 1) => new Date(Date.UTC(y, m, d));
   const addDays = (d: Date, n: number) =>
@@ -65,7 +64,6 @@ export default function PnLHistogram({
   const now = new Date();
   const T = trades.map((t) => ({ ...t, d: new Date(t.time) }));
 
-  // ---- aggregate by days or months
   let labels: string[] = [];
   let sums: number[] = [];
 
@@ -99,7 +97,6 @@ export default function PnLHistogram({
     );
   }
 
-  // ---- compute Y scaling
   let minY = Math.min(0, ...sums);
   let maxY = Math.max(0, ...sums);
   const absMax = Math.max(Math.abs(minY), Math.abs(maxY));

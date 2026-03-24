@@ -1,13 +1,12 @@
-// app/api/webhook/route.ts
+
 import { NextResponse } from "next/server";
-import type Stripe from "stripe";            // types only
+import type Stripe from "stripe";            
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Safely read unix timestamps from Subscription (typed, no `any`). */
 type SubUnix = { current_period_end?: number | null; trial_end?: number | null };
 
 function subTimes(sub: Stripe.Subscription) {
@@ -26,7 +25,6 @@ function mapPlan(plan: string | undefined): "PRO_MONTHLY" | "PRO_ANNUAL" | null 
 }
 
 export async function POST(req: Request) {
-  // 1) Verify signature
   const sig = req.headers.get("stripe-signature");
   if (!sig) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
 
