@@ -87,7 +87,7 @@ try {
   sensitive.push(databaseUrl);
   let ready = false;
   for (let i = 0; i < 60; i++) {
-    try { await run("docker", ["exec", container, "pg_isready", "-U", "tradepulse_test", "-d", database]); ready = true; break; }
+    try { await run("docker", ["exec", container, "pg_isready", "-h", "127.0.0.1", "-U", "tradepulse_test", "-d", database]); ready = true; break; }
     catch { await new Promise((resolve) => setTimeout(resolve, 500)); }
   }
   if (!ready) throw new Error("Disposable PostgreSQL did not become ready within 30 seconds.");
