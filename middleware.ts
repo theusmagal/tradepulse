@@ -5,21 +5,30 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const publicPaths = [
-    "/",              
+    "/",
     "/pricing",
     "/legal/terms",
     "/legal/privacy",
     "/auth/login",
     "/auth/register",
     "/auth/auto-checkout",
+    "/api/register",
+    "/api/webhook",
+    "/api/ping",
+    "/favicon.ico",
+    "/file.svg",
+    "/globe.svg",
+    "/grid.svg",
+    "/logo.svg",
+    "/next.svg",
+    "/vercel.svg",
+    "/window.svg",
   ];
+  const publicPrefixes = ["/api/auth", "/_next", "/static", "/marketing"];
 
   if (
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/static") ||
-    publicPaths.some((p) => pathname.startsWith(p))
+    publicPaths.includes(pathname) ||
+    publicPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))
   ) {
     return NextResponse.next();
   }
